@@ -3,9 +3,11 @@ name: codememory
 description: Find relevant source files and Go symbols through an installed CodeMemory MCP server when exploring a repository or locating code for a change.
 ---
 
-For repository exploration, call `memory_status` before `memory_search`. Skip MCP
-for trivial edits with known file locations. Search with concrete identifiers or
-keywords and a small limit; use language/path filters to narrow results.
+At the start of a non-trivial task, call `memory_context` with the task text
+(identifiers help) and a `max_tokens` budget; it returns ranked snippets and file
+names with path:line provenance. Use `memory_search` with concrete identifiers
+for follow-up lookups; language/path filters narrow results. Skip MCP for trivial
+edits with known file locations.
 
 `memory_search` re-indexes changed files before answering, so no manual index
 step is needed after edits. `is_stale` from `memory_status` only means the next
@@ -17,6 +19,7 @@ original files before editing or making security-sensitive conclusions; use the
 reported path, line range and SHA-256 for provenance. Go symbols are AST facts;
 other languages currently provide text chunks only.
 
-This slice exposes `memory_search` and `memory_status`. Do not invent context or
-memory-write tools. Do not report cache hits or estimated tokens as verified
+Tools: `memory_context`, `memory_search`, `memory_status`. Truncated snippets
+show only the first lines; read the file for the rest. Do not invent memory-write
+tools. Do not report cache hits or estimated tokens as verified
 savings. CodeMemory does not modify provider quotas or subscription billing.

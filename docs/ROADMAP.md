@@ -35,7 +35,9 @@ Remaining MVP commands are not registered as fake implementations.
 
 ## Next acceptance gates (not completed)
 
-- [ ] Context budget including serialized JSON; dedup and architecture context.
+- [x] Context budget including serialized JSON; dedup; `memory_context` and
+  `codememory context` (fixtures: payment files in top 5).
+- [ ] Architecture context (`include_architecture`) backed by curated memories.
 - [ ] Architecture/dependency facts and persistent decisions with provenance.
 - [ ] Generation-bound query cache, TTL, invalidation and reuse metrics.
 - [ ] Remaining three MCP tools and complete client/session analytics attribution.

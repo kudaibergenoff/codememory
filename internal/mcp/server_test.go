@@ -63,14 +63,16 @@ func TestSDKToolsAndMetrics(t *testing.T) {
 	}
 	defer session.Close()
 	listed, err := session.ListTools(ctx, nil)
-	if err != nil || len(listed.Tools) != 2 {
+	if err != nil || len(listed.Tools) != 3 {
 		t.Fatalf("%+v %v", listed, err)
 	}
 	for _, call := range []struct {
 		name string
 		args map[string]any
 		fail bool
-	}{{"memory_search", map[string]any{"query": "Payment"}, false}, {"memory_status", map[string]any{}, false}, {"memory_search", map[string]any{"query": "Payment", "limit": 1000}, true}} {
+	}{{"memory_search", map[string]any{"query": "Payment"}, false}, {"memory_status", map[string]any{}, false}, {"memory_search", map[string]any{"query": "Payment", "limit": 1000}, true},
+		{"memory_context", map[string]any{"task": "add payment refund", "max_tokens": 400}, false},
+		{"memory_context", map[string]any{"task": "payment", "max_tokens": 10}, true}} {
 		result, err := session.CallTool(ctx, &sdk.CallToolParams{Name: call.name, Arguments: call.args})
 		if err != nil {
 			t.Fatal(err)
@@ -82,12 +84,12 @@ func TestSDKToolsAndMetrics(t *testing.T) {
 		if !json.Valid([]byte(text)) || strings.Contains(text, root) {
 			t.Fatalf("unsafe/non-JSON response: %s", text)
 		}
-		if call.name == "memory_search" && !call.fail && !strings.Contains(text, "pay.go") {
+		if call.name != "memory_status" && !call.fail && !strings.Contains(text, "pay.go") {
 			t.Fatal("missing search result")
 		}
 	}
 	stats, err := analytics.Stats(ctx, s.DB)
-	if err != nil || stats.Measured.MCPRequests != 3 || stats.Measured.Errors != 1 {
+	if err != nil || stats.Measured.MCPRequests != 5 || stats.Measured.Errors != 2 {
 		t.Fatalf("%+v %v", stats, err)
 	}
 }
