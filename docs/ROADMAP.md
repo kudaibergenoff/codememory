@@ -46,7 +46,7 @@ Remaining MVP commands are not registered as fake implementations.
   optional official actual-usage import; no fabricated verified savings.
 - [x] JSON/CSV report; stats filters; agent attribution from MCP clientInfo.
 - [ ] Loopback dashboard and evidence-based optimization advice.
-- [ ] `doctor`, `clean`, opt-in idempotent installers; analytics filters/cleanup.
+- [x] `doctor`, `clean`, opt-in idempotent installers; analytics filters.
 - [x] Fresh network `go mod tidy`, `govulncheck` clean, pure-Go SQLite driver.
 - [ ] Dependency license audit.
 - [ ] Execute five-platform CI and release packaging (definition alone is not proof).

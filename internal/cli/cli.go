@@ -28,9 +28,12 @@ remember: --title TEXT --body TEXT [--scope DIR] [--source PATH]...
 architecture: [--scope DIR]
 context also accepts --architecture=false to omit curated memories
 stats:   [--today | --last 30d] [--agent claude|codex|unknown]
-report:  [--format json|csv] [--today | --last 30d] [--agent ...]`
+report:  [--format json|csv] [--today | --last 30d] [--agent ...]
+install: claude|codex [--yes]   shows a diff; writes only with --yes
+clean:   [--all] [--yes]        index only; --all also removes memories and analytics
+doctor:  read-only diagnostics`
 
-var commands = map[string]bool{"init": true, "index": true, "search": true, "context": true, "remember": true, "architecture": true, "status": true, "stats": true, "report": true, "serve": true}
+var commands = map[string]bool{"init": true, "index": true, "search": true, "context": true, "remember": true, "architecture": true, "status": true, "stats": true, "report": true, "doctor": true, "install": true, "clean": true, "serve": true}
 
 type options struct {
 	command string
@@ -42,6 +45,9 @@ type options struct {
 	arch    architecture.Input
 	withArc bool
 	window  window
+	client  string
+	yes     bool
+	all     bool
 }
 
 func Run(ctx context.Context, args []string, out, errOut io.Writer) error {
@@ -63,6 +69,14 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer) error {
 	root, err := config.Root(opts.project)
 	if err != nil {
 		return err
+	}
+	switch opts.command {
+	case "doctor":
+		return runDoctor(ctx, root, out)
+	case "install":
+		return runInstall(root, opts, out)
+	case "clean":
+		return runClean(ctx, root, opts, out)
 	}
 	if opts.command == "init" {
 		if err = config.Init(root); err != nil {
@@ -88,6 +102,10 @@ func parse(args []string, errOut io.Writer) (options, error) {
 	opts := options{command: args[0]}
 	if !commands[opts.command] {
 		return opts, fmt.Errorf("unknown command %q", opts.command)
+	}
+	rest := args[1:]
+	if opts.command == "install" && len(rest) > 0 && !strings.HasPrefix(rest[0], "-") {
+		opts.client, rest = rest[0], rest[1:]
 	}
 	flags := flag.NewFlagSet(opts.command, flag.ContinueOnError)
 	flags.SetOutput(errOut)
@@ -117,7 +135,13 @@ func parse(args []string, errOut io.Writer) (options, error) {
 		flags.StringVar(&opts.memory.Scope, "scope", "", "area it applies to (default project)")
 		flags.Var((*stringList)(&opts.memory.SourcePaths), "source", "supporting project-relative file (repeatable)")
 	}
-	if err := flags.Parse(args[1:]); err != nil {
+	if opts.command == "install" || opts.command == "clean" {
+		flags.BoolVar(&opts.yes, "yes", false, "apply the shown changes")
+	}
+	if opts.command == "clean" {
+		flags.BoolVar(&opts.all, "all", false, "remove the whole .codememory directory, including memories and analytics")
+	}
+	if err := flags.Parse(rest); err != nil {
 		return opts, err
 	}
 	if flags.NArg() != 0 {

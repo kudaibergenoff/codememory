@@ -4,7 +4,15 @@ Build and index first. Replace paths below with absolute paths. No API key or
 CodeMemory cloud account is involved. These commands change client configuration
 only when **you run them**; CodeMemory does not install itself automatically.
 
-Claude Code:
+Recommended: `codememory install claude` and `codememory install codex` show
+exactly what they would change (diffs) and write only with `--yes`. Claude:
+project `.mcp.json` entry (other keys and servers preserved) and
+`.claude/skills/codememory/SKILL.md`. Codex: a marked `[mcp_servers.codememory]`
+block in `$CODEX_HOME/config.toml` (default `~/.codex`) and a marked block in the
+project `AGENTS.md`; a hand-written `[mcp_servers.codememory]` is never edited.
+Re-running is a no-op. `codememory doctor` verifies both registrations.
+
+Manual alternative, Claude Code:
 
 ```sh
 claude mcp add --transport stdio --scope project codememory -- /absolute/path/to/codememory serve --project /absolute/path/to/repository
