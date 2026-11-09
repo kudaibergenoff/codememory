@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Release packaging: `make dist`, tag-triggered release workflow, CGO-free
+  archives for 5 platforms with SHA256SUMS and THIRD_PARTY_LICENSES; README rewritten.
+
 - memory_context drops candidates below 30% of the best BM25 strength instead of
   padding the budget with weak matches (fixture median response -23%, recall kept).
 

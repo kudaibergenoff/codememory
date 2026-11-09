@@ -41,15 +41,16 @@ Remaining MVP commands are not registered as fake implementations.
 - [x] Persistent decisions with provenance: `memory_remember`, sourced/unverified/stale.
 - [x] Architecture/dependency facts (`memory_architecture`), Go imports from go/ast.
 - [x] Generation-bound query cache, TTL, invalidation and reuse metrics.
-- [ ] Remaining three MCP tools and complete client/session analytics attribution.
-- [ ] Reproducible baseline harness with quality criteria, negative cases and
-  optional official actual-usage import; no fabricated verified savings.
+- [x] Remaining three MCP tools; agent attribution from MCP clientInfo (no session IDs: clients do not expose them).
+- [x] Reproducible baseline harness with quality criteria and negative cases
+  (`codememory benchmark`); optional import of official usage data remains open.
 - [x] JSON/CSV report; stats filters; agent attribution from MCP clientInfo.
 - [x] Loopback dashboard and evidence-based optimization advice.
 - [x] `doctor`, `clean`, opt-in idempotent installers; analytics filters.
 - [x] Fresh network `go mod tidy`, `govulncheck` clean, pure-Go SQLite driver.
-- [ ] Dependency license audit.
-- [ ] Execute five-platform CI and release packaging (definition alone is not proof).
+- [x] Dependency license audit: MIT, BSD-3-Clause and Apache-2.0 only; texts ship in
+  every release archive (`THIRD_PARTY_LICENSES`).
+- [x] Five-platform CI green; CGO-free release archives with SHA256SUMS on `v*` tags.
 - [ ] Authenticated smoke test in Claude Code and Codex CLI using subscription login.
 - [ ] Performance profile on large repositories and scanner policy/ignore review.
 

@@ -101,3 +101,12 @@ response fell from 575 to 442 estimated tokens with recall 1.0 (0.6 lost an
 expected file); on this repository results were unchanged (recall 1.0, budget
 filled by relevant snippets). Fixture savings vs. the lexical baseline remain
 negative: the remaining cost is per-response provenance overhead.
+
+## Addendum 2026-11-09 — release packaging and licenses
+
+`make dist VERSION=v0.0.0-test` built CGO-free archives for linux amd64/arm64,
+darwin amd64/arm64 and windows amd64 (13-14 MB binaries); `shasum -c SHA256SUMS`
+passed and the darwin/arm64 binary reported the injected version. Every module
+linked into the binary is MIT, BSD-3-Clause or Apache-2.0 (MCP Go SDK; no NOTICE
+file); their texts are bundled as THIRD_PARTY_LICENSES. Binaries are not
+code-signed. The release workflow has not run yet: it needs a pushed `v*` tag.

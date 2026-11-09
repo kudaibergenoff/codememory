@@ -1,4 +1,5 @@
-.PHONY: build test race vet fmt vuln check
+.PHONY: build test race vet fmt vuln check dist
+VERSION ?= dev
 build:
 	CGO_ENABLED=0 go build -o bin/codememory ./cmd/codememory
 test:
@@ -12,3 +13,5 @@ fmt:
 vuln:
 	go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 check: fmt vet test race build
+dist:
+	scripts/dist.sh $(VERSION)
