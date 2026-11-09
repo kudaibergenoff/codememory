@@ -56,7 +56,7 @@ func TestSDKToolsAndMetrics(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer ss.Close()
-	client := sdk.NewClient(&sdk.Implementation{Name: "test", Version: "1"}, nil)
+	client := sdk.NewClient(&sdk.Implementation{Name: "claude-code", Version: "1"}, nil)
 	session, err := client.Connect(ctx, b, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +92,7 @@ func TestSDKToolsAndMetrics(t *testing.T) {
 			t.Fatal("missing search result")
 		}
 	}
-	stats, err := analytics.Stats(ctx, s.DB)
+	stats, err := analytics.Stats(ctx, s.DB, analytics.Filter{Agent: analytics.AgentClaude})
 	if err != nil || stats.Measured.MCPRequests != 9 || stats.Measured.Errors != 4 {
 		t.Fatalf("%+v %v", stats, err)
 	}

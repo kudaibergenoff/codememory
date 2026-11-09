@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Windows: valid SQLite URI (`file:///C:/...`); CI is green on all five platforms.
+- Analytics: numeric event time and agent attribution (schema v5); `stats`
+  filters `--today`, `--last`, `--agent`; `report --format json|csv`.
+
 - Query cache (schema v4) for `memory_search` and `memory_context`, bound to the
   index generation and memory revision; `stats` reports hits, misses and rate.
 

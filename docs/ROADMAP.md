@@ -44,7 +44,8 @@ Remaining MVP commands are not registered as fake implementations.
 - [ ] Remaining three MCP tools and complete client/session analytics attribution.
 - [ ] Reproducible baseline harness with quality criteria, negative cases and
   optional official actual-usage import; no fabricated verified savings.
-- [ ] JSON/CSV report, loopback dashboard and evidence-based optimization advice.
+- [x] JSON/CSV report; stats filters; agent attribution from MCP clientInfo.
+- [ ] Loopback dashboard and evidence-based optimization advice.
 - [ ] `doctor`, `clean`, opt-in idempotent installers; analytics filters/cleanup.
 - [x] Fresh network `go mod tidy`, `govulncheck` clean, pure-Go SQLite driver.
 - [ ] Dependency license audit.

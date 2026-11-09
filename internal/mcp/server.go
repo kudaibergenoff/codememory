@@ -53,41 +53,41 @@ func New(s *sqlite.Store, root string, version string) *sdk.Server {
 	// Responses contain one JSON text block. Avoid serializing the same code twice
 	// into both content and structuredContent for clients that ingest both.
 	sdk.AddTool(srv, &sdk.Tool{Name: "memory_search", Description: searchDescription, Annotations: readOnly},
-		func(ctx context.Context, _ *sdk.CallToolRequest, in search.Input) (*sdk.CallToolResult, any, error) {
-			return call(ctx, h, "memory_search", func(ctx context.Context, cfg config.Config) (search.Response, error) {
+		func(ctx context.Context, req *sdk.CallToolRequest, in search.Input) (*sdk.CallToolResult, any, error) {
+			return call(ctx, h, req, "memory_search", func(ctx context.Context, cfg config.Config) (search.Response, error) {
 				return search.Query(ctx, s, root, cfg, in)
 			})
 		})
 	sdk.AddTool(srv, &sdk.Tool{Name: "memory_status", Description: statusDescription, Annotations: readOnly},
-		func(ctx context.Context, _ *sdk.CallToolRequest, _ struct{}) (*sdk.CallToolResult, any, error) {
-			return call(ctx, h, "memory_status", func(ctx context.Context, cfg config.Config) (search.Response, error) {
+		func(ctx context.Context, req *sdk.CallToolRequest, _ struct{}) (*sdk.CallToolResult, any, error) {
+			return call(ctx, h, req, "memory_status", func(ctx context.Context, cfg config.Config) (search.Response, error) {
 				return search.Status(ctx, s, root, cfg)
 			})
 		})
 	sdk.AddTool(srv, &sdk.Tool{Name: "memory_context", Description: contextDescription, Annotations: readOnly},
-		func(ctx context.Context, _ *sdk.CallToolRequest, in contextpack.Input) (*sdk.CallToolResult, any, error) {
-			return call(ctx, h, "memory_context", func(ctx context.Context, cfg config.Config) (contextpack.Response, error) {
+		func(ctx context.Context, req *sdk.CallToolRequest, in contextpack.Input) (*sdk.CallToolResult, any, error) {
+			return call(ctx, h, req, "memory_context", func(ctx context.Context, cfg config.Config) (contextpack.Response, error) {
 				return contextpack.Build(ctx, s, root, cfg, in)
 			})
 		})
 	sdk.AddTool(srv, &sdk.Tool{Name: "memory_architecture", Description: architectureDescription, Annotations: readOnly},
-		func(ctx context.Context, _ *sdk.CallToolRequest, in architecture.Input) (*sdk.CallToolResult, any, error) {
-			return call(ctx, h, "memory_architecture", func(ctx context.Context, cfg config.Config) (architecture.Response, error) {
+		func(ctx context.Context, req *sdk.CallToolRequest, in architecture.Input) (*sdk.CallToolResult, any, error) {
+			return call(ctx, h, req, "memory_architecture", func(ctx context.Context, cfg config.Config) (architecture.Response, error) {
 				return architecture.Describe(ctx, s, root, cfg, in)
 			})
 		})
 	falseHint := false
 	writes := &sdk.ToolAnnotations{DestructiveHint: &falseHint, IdempotentHint: true, OpenWorldHint: &closed}
 	sdk.AddTool(srv, &sdk.Tool{Name: "memory_remember", Description: rememberDescription, Annotations: writes},
-		func(ctx context.Context, _ *sdk.CallToolRequest, in memory.Input) (*sdk.CallToolResult, any, error) {
-			return call(ctx, h, "memory_remember", func(ctx context.Context, cfg config.Config) (memory.RememberResponse, error) {
+		func(ctx context.Context, req *sdk.CallToolRequest, in memory.Input) (*sdk.CallToolResult, any, error) {
+			return call(ctx, h, req, "memory_remember", func(ctx context.Context, cfg config.Config) (memory.RememberResponse, error) {
 				return memory.Remember(ctx, s, root, cfg, in)
 			})
 		})
 	return srv
 }
 
-func call[T response](ctx context.Context, h *server, tool string, fn func(context.Context, config.Config) (T, error)) (*sdk.CallToolResult, any, error) {
+func call[T response](ctx context.Context, h *server, req *sdk.CallToolRequest, tool string, fn func(context.Context, config.Config) (T, error)) (*sdk.CallToolResult, any, error) {
 	ctx, cancel := context.WithTimeout(ctx, callTimeout)
 	defer cancel()
 	started := time.Now()
@@ -100,13 +100,24 @@ func call[T response](ctx context.Context, h *server, tool string, fn func(conte
 	if failed {
 		payload = failure(h.root, result.IndexGeneration())
 	}
-	event := analytics.Event{Channel: "mcp", Tool: tool, Generation: result.IndexGeneration(), CacheHit: result.CacheHit(), ResponseBytes: len(payload), Duration: time.Since(started), Failed: failed}
+	event := analytics.Event{Channel: "mcp", Tool: tool, Agent: agentOf(req), Generation: result.IndexGeneration(), CacheHit: result.CacheHit(), ResponseBytes: len(payload), Duration: time.Since(started), Failed: failed}
 	metricCtx, done := context.WithTimeout(context.WithoutCancel(ctx), metricTimeout)
 	defer done()
 	if err := analytics.Record(metricCtx, h.store.DB, event); err != nil {
 		slog.Warn("metric recording failed", "tool", tool)
 	}
 	return &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: string(payload)}}, IsError: failed}, nil, nil
+}
+
+// agentOf categorizes the calling client from MCP clientInfo.
+func agentOf(req *sdk.CallToolRequest) string {
+	if req == nil {
+		return analytics.AgentUnknown
+	}
+	if info := req.ClientInfo(); info != nil {
+		return analytics.AgentFrom(info.Name)
+	}
+	return analytics.AgentUnknown
 }
 
 // run bounds concurrency, loads the current config and executes fn.

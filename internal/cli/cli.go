@@ -26,9 +26,11 @@ search:  --query TEXT [--limit 10] [--language go] [--path-prefix internal/]
 context: --task TEXT [--max-tokens 1500]
 remember: --title TEXT --body TEXT [--scope DIR] [--source PATH]...
 architecture: [--scope DIR]
-context also accepts --architecture=false to omit curated memories`
+context also accepts --architecture=false to omit curated memories
+stats:   [--today | --last 30d] [--agent claude|codex|unknown]
+report:  [--format json|csv] [--today | --last 30d] [--agent ...]`
 
-var commands = map[string]bool{"init": true, "index": true, "search": true, "context": true, "remember": true, "architecture": true, "status": true, "stats": true, "serve": true}
+var commands = map[string]bool{"init": true, "index": true, "search": true, "context": true, "remember": true, "architecture": true, "status": true, "stats": true, "report": true, "serve": true}
 
 type options struct {
 	command string
@@ -39,6 +41,7 @@ type options struct {
 	memory  memory.Input
 	arch    architecture.Input
 	withArc bool
+	window  window
 }
 
 func Run(ctx context.Context, args []string, out, errOut io.Writer) error {
@@ -101,6 +104,11 @@ func parse(args []string, errOut io.Writer) (options, error) {
 		flags.StringVar(&opts.context.Task, "task", "", "task description in natural language")
 		flags.IntVar(&opts.context.MaxTokens, "max-tokens", 0, "response budget in estimated tokens (500 to 8000, default 1500)")
 		flags.BoolVar(&opts.withArc, "architecture", true, "include curated memories for the ranked files")
+	case "stats", "report":
+		flags.BoolVar(&opts.window.today, "today", false, "only events since local midnight")
+		flags.StringVar(&opts.window.last, "last", "", "only events in this window, e.g. 7d or 12h (max 30d)")
+		flags.StringVar(&opts.window.agent, "agent", "", "only events from claude, codex or unknown")
+		flags.StringVar(&opts.window.format, "format", "json", "report format: json or csv")
 	case "architecture":
 		flags.StringVar(&opts.arch.Scope, "scope", "", "project-relative directory (default: whole project)")
 	case "remember":

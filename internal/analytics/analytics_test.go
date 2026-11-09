@@ -18,7 +18,7 @@ func TestRecord(t *testing.T) {
 	if err = Record(ctx, s.DB, Event{Channel: "mcp", Tool: "memory_search", ResponseBytes: 10, Duration: time.Millisecond, Reused: 3}); err != nil {
 		t.Fatal(err)
 	}
-	r, err := Stats(ctx, s.DB)
+	r, err := Stats(ctx, s.DB, Filter{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestCacheHitRateIsNullWithoutCacheEvents(t *testing.T) {
 	if err = Record(ctx, s.DB, Event{Channel: "cli", Tool: "index"}); err != nil {
 		t.Fatal(err)
 	}
-	if r, _ := Stats(ctx, s.DB); r.QueryCacheHitRate != nil {
+	if r, _ := Stats(ctx, s.DB, Filter{}); r.QueryCacheHitRate != nil {
 		t.Fatalf("rate without cache events: %v", *r.QueryCacheHitRate)
 	}
 	hit, miss := true, false
@@ -47,7 +47,7 @@ func TestCacheHitRateIsNullWithoutCacheEvents(t *testing.T) {
 		}
 	}
 
-	r, err := Stats(ctx, s.DB)
+	r, err := Stats(ctx, s.DB, Filter{})
 
 	if err != nil || r.QueryCacheHitRate == nil || *r.QueryCacheHitRate != 0.25 || r.Measured.CacheHits != 1 || r.Measured.CacheMisses != 3 {
 		t.Fatalf("%+v %v", r, err)

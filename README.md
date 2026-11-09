@@ -25,7 +25,9 @@ Add `.codememory/` to your project's `.gitignore`. Configuration is in
 `.codememory/config.json`; private SQLite state stays inside that directory.
 Global agent settings are never modified automatically.
 
-Implemented commands: `init`, `index [--full]`, `search`, `context`, `remember`, `architecture`, `status`, `stats`, `serve`, `version`.
+Implemented commands: `init`, `index [--full]`, `search`, `context`, `remember`, `architecture`, `status`, `stats`, `report`, `serve`, `version`.
+`stats [--today | --last 7d] [--agent claude|codex|unknown]` and
+`report --format json|csv` aggregate local events per UTC day, agent and tool.
 `context --task "add a refund endpoint" --max-tokens 1500` returns ranked snippets and
 file names whose whole JSON response fits the estimated token budget.
 Search additionally accepts `--language go` and `--path-prefix internal/`.

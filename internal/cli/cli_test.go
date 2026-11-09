@@ -87,3 +87,43 @@ func TestRememberCommand(t *testing.T) {
 		t.Fatalf("%v %s %s", err, out.String(), errOut.String())
 	}
 }
+
+func TestStatsAndReportFilters(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "pay.go"), []byte("package pay\nfunc Pay() {}\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	ctx := context.Background()
+	for _, args := range [][]string{{"init"}, {"search", "--query", "Pay"}, {"search", "--query", "Pay"}} {
+		if err := Run(ctx, append(args, "--project", root), &out, &errOut); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run := func(args ...string) string {
+		t.Helper()
+		out.Reset()
+		if err := Run(ctx, append(args, "--project", root), &out, &errOut); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+		return out.String()
+	}
+
+	if got := run("stats", "--last", "1d"); !strings.Contains(got, `"requests":2`) || !strings.Contains(got, `"query_cache_hit_rate":0.5`) {
+		t.Fatalf("stats --last: %s", got)
+	}
+	if got := run("stats", "--today", "--agent", "codex"); !strings.Contains(got, `"requests":0`) {
+		t.Fatalf("stats --agent codex: %s", got)
+	}
+	if got := run("report", "--format", "csv"); !strings.HasPrefix(got, "day,agent,channel,tool,") || strings.Count(got, "\n") != 2 {
+		t.Fatalf("report csv: %q", got)
+	}
+	if got := run("report"); !strings.Contains(got, `"rows":[`) || !strings.Contains(got, `"verified_token_savings":null`) {
+		t.Fatalf("report json: %s", got)
+	}
+	for _, bad := range [][]string{{"stats", "--last", "40d"}, {"stats", "--last", "abc"}, {"stats", "--today", "--last", "1d"}, {"stats", "--agent", "gpt"}, {"report", "--format", "xml"}} {
+		if err := Run(ctx, append(bad, "--project", root), &out, &errOut); err == nil {
+			t.Errorf("%v accepted", bad)
+		}
+	}
+}
