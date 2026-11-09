@@ -2,7 +2,6 @@
 package scanner
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -13,25 +12,87 @@ import (
 	"path"
 	"regexp"
 	"strings"
-	"unicode"
-	"unicode/utf8"
+	"time"
 
 	"github.com/kudaibergenoff/codememory/internal/config"
 )
 
+// Version changes whenever file selection or classification logic changes.
+const Version = "bounded-scan-v2"
+
+// RulesVersion also fingerprints the secret pattern, so editing it can never be
+// forgotten: indexed files are otherwise not re-classified while their stat
+// is unchanged.
+var RulesVersion = Version + ":" + Hash([]byte(secret.String()))[:16]
+
+// SkipReason records why a readable file was excluded after inspecting its content.
+type SkipReason string
+
+const (
+	SkipContent SkipReason = "content" // binary, invalid UTF-8 or control characters
+	SkipSecret  SkipReason = "secret"
+)
+
+// File is a permitted text file. Content is nil when Reused is true: the stat
+// matched the prior entry, so the file was not read and Hash is the prior hash.
 type File struct {
 	Path, Hash, Language string
 	Content              []byte
+	Size                 int64
+	MtimeNS              int64 // 0 means unsettled: never trusted for reuse
+	Reused               bool
 }
+
+// Skipped is a file excluded by content inspection, cached to avoid re-reading.
+type Skipped struct {
+	Path    string
+	Size    int64
+	MtimeNS int64
+	Reason  SkipReason
+}
+
+// Entry is the previously recorded state of one path.
+type Entry struct {
+	Hash    string
+	Size    int64
+	MtimeNS int64
+	Skip    SkipReason // empty for indexed files
+}
+
+// Prior maps relative paths to their previously recorded state. A nil Prior
+// forces every file to be read.
+type Prior map[string]Entry
+
+func (e Entry) matches(size, mtimeNS int64) bool {
+	return e.MtimeNS != 0 && e.MtimeNS == mtimeNS && e.Size == size
+}
+
 type Snapshot struct {
 	Files   []File
+	Skips   []Skipped
 	Skipped int
 	Secrets int
 }
 
-const Version = "bounded-scan-v1"
-
 func Hash(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
+
+// Scan walks root and returns permitted files. Files whose size and settled
+// mtime match prior are not read (mtime is a prefilter, SHA-256 the identity).
+func Scan(ctx context.Context, root string, cfg config.Config, prior Prior) (Snapshot, error) {
+	if err := cfg.Validate(); err != nil {
+		return Snapshot{}, err
+	}
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return Snapshot{}, errors.New("cannot open project root")
+	}
+	defer r.Close()
+	w := &walker{ctx: ctx, root: r, cfg: cfg, prior: prior, started: time.Now()}
+	if err := w.walk(".", nil, nil, 0); err != nil {
+		return Snapshot{}, err
+	}
+	return w.snap, nil
+}
 
 func Denied(name string) bool {
 	n := strings.ToLower(name)
@@ -69,139 +130,6 @@ func Language(name string) string {
 	default:
 		return "text"
 	}
-}
-
-func Scan(ctx context.Context, root string, cfg config.Config) (Snapshot, error) {
-	var snap Snapshot
-	if err := cfg.Validate(); err != nil {
-		return snap, err
-	}
-	r, err := os.OpenRoot(root)
-	if err != nil {
-		return snap, errors.New("cannot open project root")
-	}
-	defer r.Close()
-	var total int64
-	var entries, patterns int
-	var walk func(string, []rule, []rule, int) error
-	walk = func(dir string, gitRules, extraRules []rule, depth int) error {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if depth > 64 {
-			return errors.New("directory depth limit exceeded")
-		}
-		// Copy inherited rules: sibling directories must not share appended rules.
-		gitRules = append([]rule(nil), gitRules...)
-		extraRules = append([]rule(nil), extraRules...)
-		for i, name := range []string{".gitignore", ".codememoryignore"} {
-			rel := path.Join(dir, name)
-			info, e := r.Lstat(rel)
-			if errors.Is(e, os.ErrNotExist) {
-				continue
-			}
-			if e != nil {
-				return errors.New("cannot inspect ignore file")
-			}
-			if !info.Mode().IsRegular() {
-				return errors.New("ignore files must be regular, not symlinks")
-			}
-			b, e := read(r, rel, 64<<10)
-			if e != nil {
-				return errors.New("cannot read bounded ignore file")
-			}
-			if !utf8.Valid(b) {
-				return errors.New("ignore file is not UTF-8")
-			}
-			base := dir
-			if base == "." {
-				base = ""
-			}
-			rules, e := parseRules(base, string(b))
-			if e != nil {
-				return e
-			}
-			patterns += len(rules)
-			if patterns > 4096 {
-				return errors.New("ignore rule limit exceeded")
-			}
-			if i == 0 {
-				gitRules = append(gitRules, rules...)
-			} else {
-				extraRules = append(extraRules, rules...)
-			}
-		}
-		d, e := r.Open(dir)
-		if e != nil {
-			return errors.New("cannot open directory")
-		}
-		defer d.Close()
-		for {
-			batch, e := d.ReadDir(128)
-			if e != nil && e != io.EOF {
-				return errors.New("cannot list directory")
-			}
-			for _, entry := range batch {
-				if err := ctx.Err(); err != nil {
-					return err
-				}
-				entries++
-				if entries > 200000 {
-					return errors.New("directory entry limit exceeded")
-				}
-				rel := path.Join(dir, entry.Name())
-				if Denied(entry.Name()) || entry.Type()&os.ModeSymlink != 0 {
-					snap.Skipped++
-					continue
-				}
-				if ignored(gitRules, rel, entry.IsDir()) || ignored(extraRules, rel, entry.IsDir()) {
-					snap.Skipped++
-					continue
-				}
-				if entry.IsDir() {
-					if err := walk(rel, gitRules, extraRules, depth+1); err != nil {
-						return err
-					}
-					continue
-				}
-				info, e := r.Lstat(rel)
-				if e != nil {
-					return errors.New("file disappeared during scan; retry")
-				}
-				if !info.Mode().IsRegular() || info.Size() > cfg.MaxFileBytes {
-					snap.Skipped++
-					continue
-				}
-				b, e := read(r, rel, cfg.MaxFileBytes)
-				if e != nil {
-					return errors.New("file changed or could not be safely read; retry")
-				}
-				if bytes.IndexByte(b, 0) >= 0 || !utf8.Valid(b) || bytes.IndexFunc(b, func(r rune) bool { return unicode.IsControl(r) && r != '\n' && r != '\r' && r != '\t' }) >= 0 {
-					snap.Skipped++
-					continue
-				}
-				if secret.Match(b) {
-					snap.Skipped++
-					snap.Secrets++
-					continue
-				}
-				total += int64(len(b))
-				if total > cfg.MaxTotalBytes || len(snap.Files) >= cfg.MaxFiles {
-					return errors.New("project size limit exceeded; adjust config or ignore rules")
-				}
-				snap.Files = append(snap.Files, File{Path: rel, Hash: Hash(b), Language: Language(rel), Content: b})
-			}
-			if e == io.EOF {
-				break
-			}
-		}
-		return nil
-	}
-	err = walk(".", nil, nil, 0)
-	if err != nil {
-		return Snapshot{}, err
-	}
-	return snap, nil
 }
 
 func read(root *os.Root, name string, limit int64) ([]byte, error) {

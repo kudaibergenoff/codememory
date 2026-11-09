@@ -33,8 +33,9 @@ Manual authenticated smoke test for each client:
 2. In a fixture repository, initialize and index. Connect the stdio server.
 3. Ask the agent to call `memory_status`, then `memory_search` for `RefundPayment`.
 4. Confirm relative source path/lines/hash and clean tool JSON.
-5. Edit the fixture, repeat search: stale warning and no old snippets.
-6. Re-index and verify the new result; disconnect and confirm process exit.
+5. Edit the fixture, repeat search: the new content is found, old snippets are gone.
+6. Call `memory_status` after another edit: `is_stale` is true until the next
+   search; disconnect and confirm process exit.
 
 Protocol subprocess tests do not prove authenticated subscription compatibility.
 Installed clients were inspected using version/help only; no model request or

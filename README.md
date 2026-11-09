@@ -25,7 +25,7 @@ Add `.codememory/` to your project's `.gitignore`. Configuration is in
 `.codememory/config.json`; private SQLite state stays inside that directory.
 Global agent settings are never modified automatically.
 
-Implemented commands: `init`, `index`, `search`, `status`, `stats`, `serve`, `version`.
+Implemented commands: `init`, `index [--full]`, `search`, `status`, `stats`, `serve`, `version`.
 Search additionally accepts `--language go` and `--path-prefix internal/`.
 Place flags before any positional arguments; search uses `--query`, not a bare argument.
 All ordinary responses are JSON. `serve` reserves stdout for MCP and stderr for logs.
@@ -37,8 +37,10 @@ The MCP tools are `memory_search` and `memory_status`. Follow the
 First index parses permitted files; repeated index hashes them and reuses unchanged
 chunks. Edits/deletions publish atomically. Search uses SQLite FTS5/BM25 with Go AST
 symbol weights, source line ranges and SHA-256. PHP/Python/TypeScript have text
-chunks. Search/status re-scan permitted files; stale search returns no snippets and
-asks for re-indexing. No watcher, embeddings, model calls or query cache yet.
+chunks. Search refreshes the index first (size/mtime prefilter, SHA-256 identity),
+so edits are visible without a manual `index`; status reports staleness read-only.
+After tools that preserve size and mtime (`cp -p`, `rsync -t`) run `index --full`.
+No watcher, embeddings, model calls or query cache yet.
 
 The default limits are 1 MiB/file, 128 MiB of eligible text, 20000 files and
 40 lines/chunk (also capped at 4096 UTF-8 bytes). Hard deny precedes ignore rules;

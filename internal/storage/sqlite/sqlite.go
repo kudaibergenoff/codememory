@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"embed"
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -60,43 +59,6 @@ func Open(ctx context.Context, dir, root string) (*Store, error) {
 	return s, nil
 }
 func (s *Store) Close() error { return s.DB.Close() }
-func (s *Store) migrate(ctx context.Context, root string) error {
-	tx, err := s.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	var version int
-	if err = tx.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); err != nil {
-		return err
-	}
-	if version > 1 {
-		return errors.New("database schema is newer than this binary")
-	}
-	if version == 0 {
-		b, e := migrations.ReadFile("migrations/001_initial.sql")
-		if e != nil {
-			return e
-		}
-		if _, err = tx.ExecContext(ctx, string(b)); err != nil {
-			return fmt.Errorf("apply migration 001: %w", err)
-		}
-		if _, err = tx.ExecContext(ctx, "INSERT INTO project(id,root) VALUES(1,?)", root); err != nil {
-			return err
-		}
-		if _, err = tx.ExecContext(ctx, "PRAGMA user_version=1"); err != nil {
-			return err
-		}
-	}
-	var stored string
-	if err = tx.QueryRowContext(ctx, "SELECT root FROM project WHERE id=1").Scan(&stored); err != nil {
-		return err
-	}
-	if root != stored {
-		return errors.New("database belongs to another project root; moved projects require a fresh index")
-	}
-	return tx.Commit()
-}
 
 type Status struct {
 	Generation int64  `json:"index_generation"`

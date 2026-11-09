@@ -54,17 +54,14 @@ func TestIncrementalFreshnessAndRollback(t *testing.T) {
 		t.Fatalf("%+v %v", res, err)
 	}
 	write("pay.go", "package pay\nfunc Refund() {}\n")
+	// Search refreshes the edited file first: the old symbol must not leak.
 	res, err = search.Query(ctx, s, root, cfg, search.Input{Query: "Payment"})
-	if err != nil || !res.Stale || len(res.Matches) != 0 {
+	if err != nil || res.Stale || len(res.Matches) != 0 || res.Generation != first.Generation+1 {
 		t.Fatalf("stale leak %+v %v", res, err)
 	}
 	updated, err := indexer.Index(ctx, s, root, cfg)
-	if err != nil || updated.Generation != first.Generation+1 {
+	if err != nil || updated.Generation != first.Generation+1 || updated.Indexed != 0 {
 		t.Fatalf("%+v %v", updated, err)
-	}
-	res, err = search.Query(ctx, s, root, cfg, search.Input{Query: "Payment"})
-	if err != nil || len(res.Matches) != 0 {
-		t.Fatalf("old FTS %+v %v", res, err)
 	}
 	write("other.py", "def refund(): pass\n")
 	small := cfg

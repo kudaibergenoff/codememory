@@ -42,7 +42,7 @@ func TestExclusions(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(root, "link")); err != nil {
 		t.Log(err)
 	}
-	snap, err := Scan(context.Background(), root, config.Default())
+	snap, err := Scan(context.Background(), root, config.Default(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,12 +65,12 @@ func TestLimitsCancelAndSymlinkIgnore(t *testing.T) {
 	put(t, root, "b.txt", "world")
 	cfg := config.Default()
 	cfg.MaxFiles = 1
-	if _, err := Scan(context.Background(), root, cfg); err == nil {
+	if _, err := Scan(context.Background(), root, cfg, nil); err == nil {
 		t.Fatal("limit ignored")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := Scan(ctx, root, config.Default()); err == nil {
+	if _, err := Scan(ctx, root, config.Default(), nil); err == nil {
 		t.Fatal("cancel ignored")
 	}
 	outside := filepath.Join(t.TempDir(), "ignore")
@@ -80,7 +80,7 @@ func TestLimitsCancelAndSymlinkIgnore(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(root, ".gitignore")); err != nil {
 		t.Skip(err)
 	}
-	if _, err := Scan(context.Background(), root, config.Default()); err == nil {
+	if _, err := Scan(context.Background(), root, config.Default(), nil); err == nil {
 		t.Fatal("symlink ignore accepted")
 	}
 }

@@ -25,7 +25,8 @@ Remaining MVP commands are not registered as fake implementations.
 - [x] Incremental scanner/indexer: limits, nested ignores, secret heuristics,
   symlinks, SHA-256, no-op reuse, edit/delete, rollback and generation versioning.
 - [x] Go AST symbols; bounded Unicode text chunks for other languages.
-- [x] FTS5/BM25 search with filters, provenance and stale-result suppression.
+- [x] FTS5/BM25 search with filters, provenance and refresh-before-search freshness
+  (size/mtime prefilter, racy-mtime guard, cached binary/secret skips).
 - [x] Two MCP tools with SDK and subprocess protocol integration tests.
 - [x] Local analytics events/retention and `stats`, measured/estimated/null verified.
 - [x] Claude Skill, Codex instructions and manual configuration examples.
@@ -42,8 +43,8 @@ Remaining MVP commands are not registered as fake implementations.
   optional official actual-usage import; no fabricated verified savings.
 - [ ] JSON/CSV report, loopback dashboard and evidence-based optimization advice.
 - [ ] `doctor`, `clean`, opt-in idempotent installers; analytics filters/cleanup.
-- [ ] Fresh network `go mod tidy` and dependency/security/license audit; replace
-  the cached old SQLite driver or validate a current pure-Go driver.
+- [x] Fresh network `go mod tidy`, `govulncheck` clean, pure-Go SQLite driver.
+- [ ] Dependency license audit.
 - [ ] Execute five-platform CI and release packaging (definition alone is not proof).
 - [ ] Authenticated smoke test in Claude Code and Codex CLI using subscription login.
 - [ ] Performance profile on large repositories and scanner policy/ignore review.
