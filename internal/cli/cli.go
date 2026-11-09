@@ -2,12 +2,6 @@
 package cli
 
 import (
-	"codememory/internal/analytics"
-	"codememory/internal/config"
-	"codememory/internal/indexer"
-	"codememory/internal/mcp"
-	"codememory/internal/search"
-	"codememory/internal/storage/sqlite"
 	"context"
 	"encoding/json"
 	"errors"
@@ -17,6 +11,13 @@ import (
 	"log/slog"
 	"path/filepath"
 	"time"
+
+	"github.com/kudaibergenoff/codememory/internal/analytics"
+	"github.com/kudaibergenoff/codememory/internal/config"
+	"github.com/kudaibergenoff/codememory/internal/indexer"
+	"github.com/kudaibergenoff/codememory/internal/mcp"
+	"github.com/kudaibergenoff/codememory/internal/search"
+	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
 
 const Version = "0.1.0-dev"

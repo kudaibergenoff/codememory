@@ -2,17 +2,19 @@
 package mcp
 
 import (
-	"codememory/internal/analytics"
-	"codememory/internal/config"
-	"codememory/internal/search"
-	"codememory/internal/storage/sqlite"
 	"context"
 	"encoding/json"
 	"errors"
-	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"log/slog"
 	"path/filepath"
 	"time"
+
+	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/kudaibergenoff/codememory/internal/analytics"
+	"github.com/kudaibergenoff/codememory/internal/config"
+	"github.com/kudaibergenoff/codememory/internal/search"
+	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
 
 func New(s *sqlite.Store, root string, version string) *sdk.Server {

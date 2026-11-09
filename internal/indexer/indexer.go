@@ -2,12 +2,13 @@
 package indexer
 
 import (
-	"codememory/internal/config"
-	"codememory/internal/parser"
-	"codememory/internal/scanner"
-	"codememory/internal/storage/sqlite"
 	"context"
 	"encoding/json"
+
+	"github.com/kudaibergenoff/codememory/internal/config"
+	"github.com/kudaibergenoff/codememory/internal/parser"
+	"github.com/kudaibergenoff/codememory/internal/scanner"
+	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
 
 func ConfigHash(cfg config.Config) string {

@@ -65,3 +65,13 @@ Not passed/not executed:
 
 The CI matrix is a checked-in workflow, not evidence that other platforms passed.
 Both client login smoke tests remain release gates in INTEGRATIONS.md/ROADMAP.md.
+
+## Addendum 2026-11-09 — pure-Go driver and module path
+
+The commands above reflect the first slice. Since the switch to
+`modernc.org/sqlite` (ADR-001), the tags are gone: `make check` now runs
+`gofmt`, `go vet`, `go test`, `go test -race` and a `CGO_ENABLED=0` build.
+All passed on macOS arm64. Network access was available: `go mod tidy`
+completed and `govulncheck ./...` reported no vulnerabilities. The existing
+repository database opened unchanged; a re-index and search succeeded.
+The module path is now `github.com/kudaibergenoff/codememory`.

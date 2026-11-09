@@ -4,7 +4,11 @@ Local-first code index for AI coding agents. Work in progress: first vertical sl
 [the specification](CODEMEMORY_SPEC_RU.md), not a production release. No model API keys,
 cloud service, provider cache manipulation or source uploads.
 
-Build requires Go 1.27 and a C compiler (temporary SQLite driver choice, see ADR-001).
+Build requires Go 1.27 only: the SQLite driver is pure Go (no CGO, no build tags).
+
+```sh
+go install github.com/kudaibergenoff/codememory/cmd/codememory@latest
+```
 
 ```sh
 make build
@@ -52,11 +56,12 @@ token savings; token savings are not subscription cost savings.
 `install` and persistent-memory tools remain pending, not placeholder commands.
 The first slice is tested locally on macOS arm64; the native five-platform CI
 matrix is provided but has not run. Authenticated Claude/Codex smoke tests and a
-current SQLite driver/security review are required before release.
+dependency/license review are required before release.
 
-Build/test commands require `-tags sqlite_fts5`; `make` supplies it. Windows source
-builds additionally need a compatible C compiler (CGO). A plain CGO-disabled build
-does not provide working SQLite. Release binaries have not been published.
+Plain `go build`/`go test` need no CGO and no build tags. A `CGO_ENABLED=0` build
+is verified on macOS arm64; other platforms await the CI run. Only `go test -race`
+needs CGO (a Go race-detector requirement, not an application one).
+Release binaries have not been published.
 
 See [architecture](docs/ARCHITECTURE.md), [roadmap](docs/ROADMAP.md),
 [analytics](docs/ANALYTICS.md), [validation record](docs/VALIDATION.md),

@@ -2,16 +2,17 @@
 package search
 
 import (
-	"codememory/internal/config"
-	"codememory/internal/indexer"
-	"codememory/internal/scanner"
-	"codememory/internal/storage/sqlite"
 	"context"
 	"errors"
 	"path/filepath"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/kudaibergenoff/codememory/internal/config"
+	"github.com/kudaibergenoff/codememory/internal/indexer"
+	"github.com/kudaibergenoff/codememory/internal/scanner"
+	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
 
 type Input struct {

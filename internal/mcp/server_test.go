@@ -2,15 +2,8 @@ package mcp_test
 
 import (
 	"bufio"
-	"codememory/internal/analytics"
-	"codememory/internal/cli"
-	"codememory/internal/config"
-	"codememory/internal/indexer"
-	transport "codememory/internal/mcp"
-	"codememory/internal/storage/sqlite"
 	"context"
 	"encoding/json"
-	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"io"
 	"os"
 	"os/exec"
@@ -18,6 +11,15 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/kudaibergenoff/codememory/internal/analytics"
+	"github.com/kudaibergenoff/codememory/internal/cli"
+	"github.com/kudaibergenoff/codememory/internal/config"
+	"github.com/kudaibergenoff/codememory/internal/indexer"
+	transport "github.com/kudaibergenoff/codememory/internal/mcp"
+	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
 
 func fixture(t *testing.T) (string, *sqlite.Store) {

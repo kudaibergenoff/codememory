@@ -1,10 +1,11 @@
 package sqlite
 
 import (
-	"codememory/internal/parser"
 	"context"
 	"database/sql"
 	"time"
+
+	"github.com/kudaibergenoff/codememory/internal/parser"
 )
 
 type FileState struct {

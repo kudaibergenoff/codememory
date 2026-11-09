@@ -46,8 +46,7 @@ Official references checked on 2026-11-09:
 - [Codex MCP](https://learn.chatgpt.com/docs/extend/mcp?surface=cli)
 - [Codex AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
 
-Troubleshooting: build with `-tags sqlite_fts5` if migration reports missing FTS5;
-install a C compiler and enable CGO; initialize before serve; use absolute paths
+Troubleshooting: initialize before serve; use absolute paths
 because clients may launch in another directory. A copied database belongs to its
 original canonical root. Move it aside and initialize/re-index at the new root.
 For `database is locked`, wait for indexing to finish and retry. No partial index

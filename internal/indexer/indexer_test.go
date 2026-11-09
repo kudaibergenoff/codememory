@@ -1,15 +1,16 @@
 package indexer_test
 
 import (
-	"codememory/internal/config"
-	"codememory/internal/indexer"
-	"codememory/internal/search"
-	"codememory/internal/storage/sqlite"
 	"context"
 	"os"
 	"path/filepath"
 	"sync"
 	"testing"
+
+	"github.com/kudaibergenoff/codememory/internal/config"
+	"github.com/kudaibergenoff/codememory/internal/indexer"
+	"github.com/kudaibergenoff/codememory/internal/search"
+	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
 
 func TestIncrementalFreshnessAndRollback(t *testing.T) {

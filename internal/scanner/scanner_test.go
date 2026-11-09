@@ -1,11 +1,12 @@
 package scanner
 
 import (
-	"codememory/internal/config"
 	"context"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/kudaibergenoff/codememory/internal/config"
 )
 
 func put(t *testing.T, root, name, body string) {

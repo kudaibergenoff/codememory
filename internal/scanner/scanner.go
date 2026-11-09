@@ -16,7 +16,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"codememory/internal/config"
+	"github.com/kudaibergenoff/codememory/internal/config"
 )
 
 type File struct {
