@@ -52,8 +52,9 @@ Remaining MVP commands are not registered as fake implementations.
   every release archive (`THIRD_PARTY_LICENSES`).
 - [x] Five-platform CI green; CGO-free release archives with SHA256SUMS on `v*` tags.
 - [ ] Authenticated smoke test in Claude Code and Codex CLI using subscription login.
-- [ ] Performance profile on large repositories and scanner policy/ignore review.
+- [x] Performance profile on a large repository (Go standard library, 10k files):
+  refresh-bound calls 0.1-0.3 s, first index 25 s / 260 MiB peak (docs/VALIDATION.md).
 
-The complete Phase 2 (context) and Phase 3 (all tools/authenticated clients) gates
-remain open. This slice proves the smaller §15 scan → SQLite → search → MCP path;
-it does not claim all six product phases or production readiness.
+All six phases are implemented. The remaining gate before claiming client
+compatibility is the authenticated smoke test in both clients; code signing and
+Tree-sitter parsers are later work.

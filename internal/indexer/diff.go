@@ -33,9 +33,10 @@ func diff(ctx context.Context, root string, cfg config.Config, prior scanner.Pri
 	}
 	d := delta{snap: snap}
 	seen := make(map[string]bool, len(snap.Files))
-	for _, f := range snap.Files {
+	for i, f := range snap.Files {
 		seen[f.Path] = true
 		d.classify(f, prior, full)
+		snap.Files[i].Content = nil // only changed files keep their bytes
 	}
 	for p, e := range prior {
 		if e.Skip == "" && !seen[p] {
@@ -84,8 +85,9 @@ func (d delta) batch(cfg config.Config, cfgHash string) sqlite.Batch {
 		Skips: d.snap.Skips, SkipsChanged: d.skipsChanged,
 		Reused: d.reused, Skipped: d.snap.Skipped, Secrets: d.snap.Secrets,
 	}
-	for _, f := range d.changed {
+	for i, f := range d.changed {
 		parsed := parser.Parse(f.Path, f.Language, f.Content, cfg.ChunkLines)
+		d.changed[i].Content = nil // the parser copied it; free the bytes early
 		if parsed.ParseError {
 			b.ParseErrors++
 		}
