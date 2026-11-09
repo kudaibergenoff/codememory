@@ -163,3 +163,28 @@ func TestSizerMatchesFullEncoding(t *testing.T) {
 		}
 	}
 }
+
+func TestRelevantOnlyDropsWeakMatches(t *testing.T) {
+	m := func(path string, score float64) sqlite.Match {
+		return sqlite.Match{Source: sqlite.Source{Path: path}, Score: score}
+	}
+	got := relevantOnly([]sqlite.Match{m("a", -10), m("b", -3), m("c", -2.9), m("d", -0.5)})
+
+	if len(got) != 2 || got[0].Path != "a" || got[1].Path != "b" {
+		t.Fatalf("kept %+v", got)
+	}
+	if same := relevantOnly([]sqlite.Match{m("a", 0), m("b", 1)}); len(same) != 2 {
+		t.Fatalf("non-negative scores must not be filtered: %+v", same)
+	}
+}
+
+func TestWeakCandidatesCountAsOmitted(t *testing.T) {
+	candidates := fakeMatches(2, 1, 3)
+	candidates[0].Score, candidates[1].Score = -10, -1
+
+	got := mustPack(t, baseFor(maxTokens), candidates, maxTokens)
+
+	if len(got.Snippets) != 1 || got.Omitted != 1 || len(got.Files) != 1 {
+		t.Fatalf("snippets=%d omitted=%d files=%v", len(got.Snippets), got.Omitted, got.Files)
+	}
+}

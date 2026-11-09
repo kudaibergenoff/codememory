@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- memory_context drops candidates below 30% of the best BM25 strength instead of
+  padding the budget with weak matches (fixture median response -23%, recall kept).
+
 - `benchmark` (embedded fixture suite with negative cases, or `--tasks`),
   read-only `optimize` suggestions and a loopback-only read-only `dashboard`.
 - Context packing measures responses incrementally (7.2 ms -> 0.9 ms per pack).
