@@ -46,3 +46,21 @@ func (s *Store) SkipCounts(ctx context.Context) (map[string]int, error) {
 	}
 	return counts, nil
 }
+
+// FilesByLanguage counts indexed files per detected language.
+func (s *Store) FilesByLanguage(ctx context.Context) (map[string]int, error) {
+	counts := map[string]int{}
+	err := eachRow(ctx, s.DB, `SELECT language,count(*) FROM files GROUP BY language`, func(r *sql.Rows) error {
+		var lang string
+		var n int
+		if err := r.Scan(&lang, &n); err != nil {
+			return err
+		}
+		counts[lang] = n
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("count files by language: %w", err)
+	}
+	return counts, nil
+}

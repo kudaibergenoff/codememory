@@ -131,3 +131,14 @@ released right after classification/parsing. The database is about the size of
 the indexed text (160 MB here: chunk text plus the FTS index). Observed ranking
 issue: test files can outrank their implementation (`server_test.go` first for
 an HTTP routing task).
+
+## Addendum 2026-11-09 — specification gaps closed
+
+`memory_status` now reports database size, query-cache entries and hit rate,
+files per language and supported languages (SPEC §7). Events carry config
+version, invalidation, keyed request fingerprints and measured recording
+overhead (SPEC §11.1): 233 µs in total, 0.02% of request latency here. Test
+files are demoted in memory_context: for an HTTP routing task on the Go standard
+library, `net/http/server_test.go` no longer ranks first (request.go,
+responsecontroller.go, server.go lead). Both benchmark suites still pass with
+recall 1.0.

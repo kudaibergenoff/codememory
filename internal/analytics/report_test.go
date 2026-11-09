@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/csv"
+	"strings"
 	"testing"
 	"time"
 
@@ -93,5 +94,38 @@ func TestRetentionUsesNumericTime(t *testing.T) {
 	var stale int
 	if err := s.DB.QueryRowContext(ctx, `SELECT count(*) FROM events WHERE at_ns < ?`, cutoff).Scan(&stale); err != nil || stale != 0 {
 		t.Fatalf("events older than retention kept: %d %v", stale, err)
+	}
+}
+
+func TestEventProvenanceRepeatsAndOverhead(t *testing.T) {
+	ctx := context.Background()
+	s, err := sqlite.Open(ctx, t.TempDir(), "p")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	key := strings.Repeat("ab", 32)
+	for _, e := range []Event{
+		{Channel: "mcp", Tool: "memory_search", ConfigVersion: "cfg1", RequestKey: key, Invalidated: true, Duration: time.Millisecond},
+		{Channel: "mcp", Tool: "memory_search", ConfigVersion: "cfg1", RequestKey: key, Duration: time.Millisecond},
+		{Channel: "mcp", Tool: "memory_status", ConfigVersion: "cfg1", Duration: time.Millisecond},
+	} {
+		if err := Record(ctx, s.DB, e); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	r, err := Stats(ctx, s.DB, Filter{})
+
+	m := r.Measured
+	if err != nil || m.RepeatedRequests != 1 || m.StaleInvalidations != 1 || m.MetricsOverheadUS <= 0 || r.MetricsOverheadPct == nil {
+		t.Fatalf("%+v %v", r, err)
+	}
+	var stored, version string
+	if err := s.DB.QueryRow(`SELECT request_hash,config_version FROM events WHERE request_hash<>'' LIMIT 1`).Scan(&stored, &version); err != nil {
+		t.Fatal(err)
+	}
+	if stored == key || strings.Contains(key, stored) || len(stored) != 32 || version != "cfg1" {
+		t.Fatalf("request fingerprint must be keyed, not the raw key: %q %q", stored, version)
 	}
 }

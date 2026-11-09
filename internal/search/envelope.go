@@ -31,12 +31,23 @@ type Envelope struct {
 	Warnings      []string        `json:"warnings"`
 	Sources       []sqlite.Source `json:"sources"`
 	cache         *bool           // query-cache outcome for metrics; never serialized
+	invalidated   bool            // this call's refresh re-indexed files
+	requestKey    string          // tool+input fingerprint for repeat counting
 }
 
 func (e Envelope) IndexGeneration() int64 { return e.Generation }
 
 // CacheHit reports the query-cache outcome, or nil when no cache was consulted.
 func (e Envelope) CacheHit() *bool { return e.cache }
+
+// Invalidated reports whether this call's refresh re-indexed files.
+func (e Envelope) Invalidated() bool { return e.invalidated }
+
+// RequestKey is the tool+input fingerprint, or "" for tools without one.
+func (e Envelope) RequestKey() string { return e.requestKey }
+
+// MarkRequest records the request fingerprint for metrics.
+func (e *Envelope) MarkRequest(key string) { e.requestKey = key }
 
 // MarkCache records the query-cache outcome for metrics.
 func (e *Envelope) MarkCache(hit bool) { e.cache = &hit }
@@ -90,6 +101,7 @@ func Withheld(ctx context.Context, s *sqlite.Store, root string) (Envelope, erro
 func Fresh(root string, generation int64, refreshed sqlite.IndexResult) Envelope {
 	e := NewEnvelope(root)
 	e.Generation = generation
+	e.invalidated = refreshed.Indexed+refreshed.Deleted > 0
 	if refreshed.Secrets > 0 {
 		e.Warnings = append(e.Warnings, secretsNotice)
 	}

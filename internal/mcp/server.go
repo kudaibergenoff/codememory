@@ -13,6 +13,7 @@ import (
 	"github.com/kudaibergenoff/codememory/internal/architecture"
 	"github.com/kudaibergenoff/codememory/internal/config"
 	"github.com/kudaibergenoff/codememory/internal/contextpack"
+	"github.com/kudaibergenoff/codememory/internal/indexer"
 	"github.com/kudaibergenoff/codememory/internal/memory"
 	"github.com/kudaibergenoff/codememory/internal/search"
 	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
@@ -37,6 +38,8 @@ const (
 type response interface {
 	IndexGeneration() int64
 	CacheHit() *bool
+	Invalidated() bool
+	RequestKey() string
 }
 
 type server struct {
@@ -91,7 +94,7 @@ func call[T response](ctx context.Context, h *server, req *sdk.CallToolRequest, 
 	ctx, cancel := context.WithTimeout(ctx, callTimeout)
 	defer cancel()
 	started := time.Now()
-	result, err := run(ctx, h, fn)
+	result, cfg, err := run(ctx, h, fn)
 	var payload []byte
 	if err == nil {
 		payload, err = search.Encode(result)
@@ -100,7 +103,7 @@ func call[T response](ctx context.Context, h *server, req *sdk.CallToolRequest, 
 	if failed {
 		payload = failure(h.root, result.IndexGeneration())
 	}
-	event := analytics.Event{Channel: "mcp", Tool: tool, Agent: agentOf(req), Generation: result.IndexGeneration(), CacheHit: result.CacheHit(), ResponseBytes: len(payload), Duration: time.Since(started), Failed: failed}
+	event := analytics.Event{Channel: "mcp", Tool: tool, Agent: agentOf(req), Generation: result.IndexGeneration(), CacheHit: result.CacheHit(), Invalidated: result.Invalidated(), RequestKey: result.RequestKey(), ConfigVersion: configVersion(cfg), ResponseBytes: len(payload), Duration: time.Since(started), Failed: failed}
 	metricCtx, done := context.WithTimeout(context.WithoutCancel(ctx), metricTimeout)
 	defer done()
 	if err := analytics.Record(metricCtx, h.store.DB, event); err != nil {
@@ -121,19 +124,29 @@ func agentOf(req *sdk.CallToolRequest) string {
 }
 
 // run bounds concurrency, loads the current config and executes fn.
-func run[T response](ctx context.Context, h *server, fn func(context.Context, config.Config) (T, error)) (T, error) {
+func run[T response](ctx context.Context, h *server, fn func(context.Context, config.Config) (T, error)) (T, config.Config, error) {
 	var zero T
 	select {
 	case h.gate <- struct{}{}:
 		defer func() { <-h.gate }()
 	case <-ctx.Done():
-		return zero, ctx.Err()
+		return zero, config.Config{}, ctx.Err()
 	}
 	cfg, err := config.Load(h.root)
 	if err != nil {
-		return zero, err
+		return zero, cfg, err
 	}
-	return fn(ctx, cfg)
+	result, err := fn(ctx, cfg)
+	return result, cfg, err
+}
+
+// configVersion identifies the effective configuration in metrics, or "" if
+// it could not be loaded.
+func configVersion(cfg config.Config) string {
+	if cfg.Version == 0 {
+		return ""
+	}
+	return indexer.ConfigHash(cfg)[:12]
 }
 
 // failure never exposes SQL, absolute paths or arbitrary input to the client.

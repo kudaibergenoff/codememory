@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `memory_status`: database size, cache stats, files per language, supported
+  languages. Events: config version, invalidations, keyed repeat fingerprints and
+  measured metrics overhead (schema v7). Test files are demoted in memory_context.
+  Prompt-injection test for indexed files.
+
 - Large repositories: per-directory `os.Root` walk (search 0.65 s -> 0.10 s on the
   10k-file Go stdlib) and lower first-index memory (376 -> 260 MiB peak).
 

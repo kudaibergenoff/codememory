@@ -62,3 +62,11 @@ suggestions (large directories, secret-like exclusions, tool errors, stale
 memories, budget saturation, recall misses, negative savings). It never applies
 them. `codememory dashboard` shows the same local data read-only on loopback;
 there is no demo data.
+
+Each event also records the configuration version (short config hash), whether
+the call's refresh re-indexed files (`stale_invalidations`), a request
+fingerprint for `repeated_requests` (HMAC-SHA-256 of tool and input under a
+random per-database key; the request text is never stored) and the cost of
+recording the event itself (`metrics_overhead_us`, insert and prune, commit
+excluded). `stats` reports that cost as `metrics_overhead_pct` of the measured
+request latency (0.02% on this repository).

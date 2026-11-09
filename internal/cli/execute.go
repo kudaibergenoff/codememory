@@ -23,11 +23,15 @@ func execute(ctx context.Context, opts options, s *sqlite.Store, root string, cf
 	started := time.Now()
 	event := analytics.Event{Channel: "cli", Tool: opts.command}
 	result, err := dispatch(ctx, opts, s, root, cfg, &event)
+	event.ConfigVersion = indexer.ConfigHash(cfg)[:12]
 	if r, ok := result.(interface {
 		IndexGeneration() int64
 		CacheHit() *bool
+		Invalidated() bool
+		RequestKey() string
 	}); ok {
 		event.Generation, event.CacheHit = r.IndexGeneration(), r.CacheHit()
+		event.Invalidated, event.RequestKey = r.Invalidated(), r.RequestKey()
 	}
 	var payload []byte
 	if raw, ok := result.(rawOutput); ok && err == nil {
