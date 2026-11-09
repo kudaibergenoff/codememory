@@ -32,6 +32,11 @@ type Measured struct {
 	ReusedFiles   int   `json:"unchanged_files_reused"`
 	CacheHits     int   `json:"query_cache_hits"`
 	CacheMisses   int   `json:"query_cache_misses"`
+	// StaleInvalidations counts calls whose refresh re-indexed files.
+	StaleInvalidations int `json:"stale_invalidations"`
+	// RepeatedRequests counts calls identical to an earlier one in the window.
+	RepeatedRequests  int   `json:"repeated_requests"`
+	MetricsOverheadUS int64 `json:"metrics_overhead_us"`
 }
 
 type Estimated struct {
@@ -48,7 +53,9 @@ type Report struct {
 	ActualUsage       *int64    `json:"actual_usage"`
 	VerifiedSavings   *int64    `json:"verified_token_savings"`
 	QueryCacheHitRate *float64  `json:"query_cache_hit_rate"`
-	Note              string    `json:"note"`
+	// MetricsOverheadPct is recording cost relative to the measured request latency.
+	MetricsOverheadPct *float64 `json:"metrics_overhead_pct"`
+	Note               string   `json:"note"`
 }
 
 const statsNote = "Local events only (30-day retention, at most 10000). null means unavailable. File reuse is avoided parsing and cache hits are avoided retrieval work; neither is token savings. Response tokens exclude client prompts and protocol envelopes."
@@ -62,14 +69,18 @@ func Stats(ctx context.Context, db *sql.DB, f Filter) (Report, error) {
 	}
 	where, args := f.where()
 	m := &r.Measured
-	err := db.QueryRowContext(ctx, `SELECT count(*),coalesce(sum(channel='mcp'),0),coalesce(sum(failed),0),coalesce(sum(response_bytes),0),coalesce(sum(latency_us),0),coalesce(sum(indexed_files),0),coalesce(sum(reused_files),0),coalesce(sum(estimated_tokens),0),coalesce(sum(cache_hit=1),0),coalesce(sum(cache_hit=0),0) FROM events WHERE `+where, args...).
-		Scan(&m.Requests, &m.MCPRequests, &m.Errors, &m.ResponseBytes, &m.LatencyUS, &m.IndexedFiles, &m.ReusedFiles, &r.Estimated.ResponseTokens, &m.CacheHits, &m.CacheMisses)
+	err := db.QueryRowContext(ctx, `SELECT count(*),coalesce(sum(channel='mcp'),0),coalesce(sum(failed),0),coalesce(sum(response_bytes),0),coalesce(sum(latency_us),0),coalesce(sum(indexed_files),0),coalesce(sum(reused_files),0),coalesce(sum(estimated_tokens),0),coalesce(sum(cache_hit=1),0),coalesce(sum(cache_hit=0),0),coalesce(sum(invalidated),0),coalesce(sum(request_hash<>''),0)-count(DISTINCT nullif(request_hash,'')),coalesce(sum(overhead_us),0) FROM events WHERE `+where, args...).
+		Scan(&m.Requests, &m.MCPRequests, &m.Errors, &m.ResponseBytes, &m.LatencyUS, &m.IndexedFiles, &m.ReusedFiles, &r.Estimated.ResponseTokens, &m.CacheHits, &m.CacheMisses, &m.StaleInvalidations, &m.RepeatedRequests, &m.MetricsOverheadUS)
 	if err != nil {
 		return r, fmt.Errorf("aggregate metrics: %w", err)
 	}
 	if lookups := m.CacheHits + m.CacheMisses; lookups > 0 {
 		rate := float64(m.CacheHits) / float64(lookups)
 		r.QueryCacheHitRate = &rate
+	}
+	if m.LatencyUS > 0 {
+		pct := float64(m.MetricsOverheadUS) / float64(m.LatencyUS) * 100
+		r.MetricsOverheadPct = &pct
 	}
 	return r, nil
 }

@@ -16,6 +16,23 @@ const Version = "go-ast-text-v2"
 // chunk labels, which would weight unrelated chunks by imported package names.
 const KindImport = "import"
 
+// LanguageSupport describes how deeply a detected language is understood.
+type LanguageSupport struct {
+	Language string `json:"language"`
+	Support  string `json:"support"`
+}
+
+// Supported lists every language the scanner detects and what the index holds for it.
+var Supported = []LanguageSupport{
+	{"go", "go/ast symbols (package, types, funcs, methods, imports) and text chunks"},
+	{"python", "text chunks"},
+	{"php", "text chunks"},
+	{"typescript", "text chunks"},
+	{"javascript", "text chunks"},
+	{"markdown", "text chunks"},
+	{"text", "text chunks (other UTF-8 files)"},
+}
+
 type Symbol struct {
 	Name, Kind string
 	Start, End int

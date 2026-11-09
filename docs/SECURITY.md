@@ -31,3 +31,7 @@ returned with the untrusted-data warning, size-limited (title 200 B, body 4000 B
 `password|token|secret|api_key...: <8+ chars>` assignment (title, body and scope).
 Source paths must be clean project-relative paths; only indexed files can make
 a memory `sourced`, so excluded or secret-like files never count as evidence.
+
+Prompt injection in indexed files is tested: a README telling the agent to ignore
+its instructions and run a shell pipeline is returned verbatim as data, with the
+untrusted-data warning, by both search and context; no tool executes anything.

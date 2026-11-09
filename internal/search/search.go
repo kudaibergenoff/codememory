@@ -10,8 +10,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/kudaibergenoff/codememory/internal/analytics"
 	"github.com/kudaibergenoff/codememory/internal/config"
 	"github.com/kudaibergenoff/codememory/internal/indexer"
+	"github.com/kudaibergenoff/codememory/internal/parser"
 	"github.com/kudaibergenoff/codememory/internal/qcache"
 	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
@@ -33,7 +35,18 @@ type Input struct {
 type Response struct {
 	Envelope
 	Matches []sqlite.Match `json:"matches"`
-	Status  *sqlite.Status `json:"status,omitempty"`
+	Status  *StatusInfo    `json:"status,omitempty"`
+}
+
+// StatusInfo is memory_status's report (SPEC §7): counts, freshness, database
+// size, cache statistics and supported languages.
+type StatusInfo struct {
+	sqlite.Status
+	DBBytes            int64                    `json:"database_bytes"`
+	CacheEntries       int                      `json:"query_cache_entries"`
+	CacheHitRate       *float64                 `json:"query_cache_hit_rate"`
+	FilesByLanguage    map[string]int           `json:"files_by_language"`
+	SupportedLanguages []parser.LanguageSupport `json:"supported_languages"`
 }
 
 func newResponse(e Envelope) Response {
@@ -93,6 +106,7 @@ func Query(ctx context.Context, s *sqlite.Store, root string, cfg config.Config,
 		slog.Warn("query cache read failed", "error", err)
 	} else if hit {
 		cached.MarkCache(true)
+		cached.MarkRequest(key)
 		return cached, nil
 	}
 	result, err := s.Search(ctx, expr, in.Language, in.PathPrefix, in.Limit)
@@ -108,6 +122,7 @@ func Query(ctx context.Context, s *sqlite.Store, root string, cfg config.Config,
 		slog.Warn("query cache write failed", "error", err)
 	}
 	response.MarkCache(false)
+	response.MarkRequest(key)
 	return response, nil
 }
 
@@ -118,14 +133,14 @@ func Status(ctx context.Context, s *sqlite.Store, root string, cfg config.Config
 	if err != nil {
 		return Response{}, err
 	}
-	st, err := s.Status(ctx)
+	info, err := statusInfo(ctx, s)
 	if err != nil {
-		return Response{}, fmt.Errorf("read index status: %w", err)
+		return Response{}, err
 	}
 	response := newResponse(NewEnvelope(root))
-	response.Generation = st.Generation
+	response.Generation = info.Generation
 	response.Stale = fresh.Stale
-	response.Status = &st
+	response.Status = &info
 	if fresh.Stale {
 		response.Warnings = append(response.Warnings, staleNotice)
 	}
@@ -133,4 +148,25 @@ func Status(ctx context.Context, s *sqlite.Store, root string, cfg config.Config
 		response.Warnings = append(response.Warnings, secretsNotice)
 	}
 	return response, nil
+}
+
+func statusInfo(ctx context.Context, s *sqlite.Store) (StatusInfo, error) {
+	st, err := s.Status(ctx)
+	if err != nil {
+		return StatusInfo{}, fmt.Errorf("read index status: %w", err)
+	}
+	foot, err := s.Footprint(ctx)
+	if err != nil {
+		return StatusInfo{}, err
+	}
+	langs, err := s.FilesByLanguage(ctx)
+	if err != nil {
+		return StatusInfo{}, err
+	}
+	usage, err := analytics.Stats(ctx, s.DB, analytics.Filter{})
+	if err != nil {
+		return StatusInfo{}, err
+	}
+	return StatusInfo{Status: st, DBBytes: foot.DBBytes, CacheEntries: foot.CacheEntries, CacheHitRate: usage.QueryCacheHitRate,
+		FilesByLanguage: langs, SupportedLanguages: parser.Supported}, nil
 }

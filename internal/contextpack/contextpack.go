@@ -5,6 +5,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"path"
+	"sort"
+	"strings"
 
 	"github.com/kudaibergenoff/codememory/internal/analytics"
 	"github.com/kudaibergenoff/codememory/internal/config"
@@ -81,6 +84,7 @@ func Build(ctx context.Context, s *sqlite.Store, root string, cfg config.Config,
 		slog.Warn("query cache read failed", "error", err)
 	} else if hit {
 		cached.MarkCache(true)
+		cached.MarkRequest(key)
 		return cached, nil
 	}
 	resp, err := assemble(ctx, s, root, base, refreshed, include, budget)
@@ -91,6 +95,7 @@ func Build(ctx context.Context, s *sqlite.Store, root string, cfg config.Config,
 		slog.Warn("query cache write failed", "error", err)
 	}
 	resp.MarkCache(false)
+	resp.MarkRequest(key)
 	return resp, nil
 }
 
@@ -99,6 +104,7 @@ func assemble(ctx context.Context, s *sqlite.Store, root string, base Response, 
 	if err != nil {
 		return Response{}, err
 	}
+	result.Matches = demoteTests(result.Matches)
 	base.Envelope = search.Fresh(root, result.Generation, refreshed)
 	var memories []memory.Record
 	if include {
@@ -107,6 +113,41 @@ func assemble(ctx context.Context, s *sqlite.Store, root string, base Response, 
 		}
 	}
 	return pack(base, result.Matches, memories, budget)
+}
+
+// testWeight scales the BM25 strength of test files: they repeat the names they
+// exercise and otherwise outrank the implementation an agent needs to edit.
+const testWeight = 0.6
+
+// demoteTests weakens test-file scores and re-sorts by score, keeping order
+// among equals.
+func demoteTests(matches []sqlite.Match) []sqlite.Match {
+	out := make([]sqlite.Match, len(matches))
+	for i, m := range matches {
+		if isTestPath(m.Path) {
+			m.Score *= testWeight // scores are negative: closer to 0 ranks lower
+		}
+		out[i] = m
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Score < out[j].Score })
+	return out
+}
+
+func isTestPath(p string) bool {
+	base := path.Base(p)
+	switch {
+	case strings.HasSuffix(base, "_test.go"), strings.HasSuffix(base, "_test.py"),
+		strings.HasPrefix(base, "test_") && strings.HasSuffix(base, ".py"),
+		strings.Contains(base, ".test."), strings.Contains(base, ".spec."),
+		strings.HasSuffix(base, "Test.php"):
+		return true
+	}
+	for _, dir := range strings.Split(path.Dir(p), "/") {
+		if dir == "test" || dir == "tests" || dir == "__tests__" || dir == "testdata" {
+			return true
+		}
+	}
+	return false
 }
 
 func budgetOf(requested int) (int, error) {

@@ -199,10 +199,11 @@ func summarize(results []Result) Summary {
 		}
 	}
 	if len(recalls) > 0 {
-		mean := 0.0
+		sum := 0.0
 		for _, v := range recalls {
-			mean += v / float64(len(recalls))
+			sum += v
 		}
+		mean := sum / float64(len(recalls)) // divide once: six 1.0s average to exactly 1
 		s.MeanRecall = &mean
 	}
 	if len(savings) > 0 {
