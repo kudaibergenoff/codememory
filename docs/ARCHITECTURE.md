@@ -43,9 +43,24 @@ replaced mid-scan), search returns `is_stale=true` with no snippets and a
 warning; details go to the local stderr log. Read transactions use a deferred
 BEGIN, so searches never wait for an indexer's writer lock.
 
-Reserved future boundaries, not empty packages: context assembly (budget including
-JSON overhead), persistent memory (provenance/dependencies), generation-bound query
-cache, benchmark/reporter and local dashboard. Do not treat these as delivered.
+Context assembly (`internal/contextpack`): task words minus English/Russian
+stopwords become FTS5 prefix terms (`"refund"*` also matches the identifier token
+`refundpayment`; the tokenizer does not split camelCase). Up to 60 BM25-ranked
+chunks are deduplicated (no overlapping ranges, at most 2 per file) and packed
+greedily: a few ranked file names (15% reserve), then snippets in rank order,
+truncated to a line prefix when they do not fit whole, then more file names.
+Every step measures the *encoded* response with `utf8-bytes-div-3-ceil-v1`, and
+counters known only at the end are measured at upper bounds, so the delivered
+JSON never exceeds `max_tokens` (500 to 8000) by this estimate; if even the empty
+envelope does not fit, an error is returned instead. The top snippet is usually
+but not always included: each snippet carries ~130 tokens of provenance. It is a
+size proxy, not the model's tokenizer. Task words follow the unicode61 tokenizer's
+boundaries (letters, numbers and combining marks are word characters). Responses are encoded without HTML escaping (`<`, `>`, `&`
+would otherwise cost 6 bytes each).
+
+Reserved future boundaries, not empty packages: persistent memory and
+architecture facts (`include_architecture` is accepted but adds nothing yet),
+generation-bound query cache, benchmark/reporter and local dashboard.
 
 Analytics writes happen after measured work; latency excludes metric storage and
 network/client execution. Metrics failures log a warning and do not discard a

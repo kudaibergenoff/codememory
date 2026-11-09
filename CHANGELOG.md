@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `memory_context` MCP tool and `codememory context`: task-driven, deduplicated,
+  ranked snippets packed so the encoded JSON response stays within `max_tokens`.
+- JSON responses are no longer HTML-escaped (`<`, `>`, `&` cost 6 bytes each).
+
 - Pure-Go SQLite (`modernc.org/sqlite`): no CGO or build tags; module path
   `github.com/kudaibergenoff/codememory`.
 - Search refreshes changed files before querying instead of withholding all

@@ -31,7 +31,8 @@ Manual authenticated smoke test for each client:
 1. Use the client's ordinary supported subscription login, with API-key variables
    unset. Verify the selected account/plan in that client's UI.
 2. In a fixture repository, initialize and index. Connect the stdio server.
-3. Ask the agent to call `memory_status`, then `memory_search` for `RefundPayment`.
+3. Ask the agent to call `memory_status`, `memory_context` for "add a refund
+   endpoint" with `max_tokens` 600, then `memory_search` for `RefundPayment`.
 4. Confirm relative source path/lines/hash and clean tool JSON.
 5. Edit the fixture, repeat search: the new content is found, old snippets are gone.
 6. Call `memory_status` after another edit: `is_stale` is true until the next
