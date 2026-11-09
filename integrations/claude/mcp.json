@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "codememory": {
+      "type": "stdio",
+      "command": "/absolute/path/to/codememory",
+      "args": ["serve", "--project", "/absolute/path/to/repository"]
+    }
+  }
+}
