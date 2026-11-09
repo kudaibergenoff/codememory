@@ -1,12 +1,13 @@
 package main
 
 import (
-	"codememory/internal/cli"
 	"context"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/kudaibergenoff/codememory/internal/cli"
 )
 
 func main() {

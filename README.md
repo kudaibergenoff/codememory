@@ -4,7 +4,11 @@ Local-first code index for AI coding agents. Work in progress: first vertical sl
 [the specification](CODEMEMORY_SPEC_RU.md), not a production release. No model API keys,
 cloud service, provider cache manipulation or source uploads.
 
-Build requires Go 1.27 and a C compiler (temporary SQLite driver choice, see ADR-001).
+Build requires Go 1.27 only: the SQLite driver is pure Go (no CGO, no build tags).
+
+```sh
+go install github.com/kudaibergenoff/codememory/cmd/codememory@latest
+```
 
 ```sh
 make build
@@ -21,7 +25,7 @@ Add `.codememory/` to your project's `.gitignore`. Configuration is in
 `.codememory/config.json`; private SQLite state stays inside that directory.
 Global agent settings are never modified automatically.
 
-Implemented commands: `init`, `index`, `search`, `status`, `stats`, `serve`, `version`.
+Implemented commands: `init`, `index [--full]`, `search`, `status`, `stats`, `serve`, `version`.
 Search additionally accepts `--language go` and `--path-prefix internal/`.
 Place flags before any positional arguments; search uses `--query`, not a bare argument.
 All ordinary responses are JSON. `serve` reserves stdout for MCP and stderr for logs.
@@ -33,8 +37,10 @@ The MCP tools are `memory_search` and `memory_status`. Follow the
 First index parses permitted files; repeated index hashes them and reuses unchanged
 chunks. Edits/deletions publish atomically. Search uses SQLite FTS5/BM25 with Go AST
 symbol weights, source line ranges and SHA-256. PHP/Python/TypeScript have text
-chunks. Search/status re-scan permitted files; stale search returns no snippets and
-asks for re-indexing. No watcher, embeddings, model calls or query cache yet.
+chunks. Search refreshes the index first (size/mtime prefilter, SHA-256 identity),
+so edits are visible without a manual `index`; status reports staleness read-only.
+After tools that preserve size and mtime (`cp -p`, `rsync -t`) run `index --full`.
+No watcher, embeddings, model calls or query cache yet.
 
 The default limits are 1 MiB/file, 128 MiB of eligible text, 20000 files and
 40 lines/chunk (also capped at 4096 UTF-8 bytes). Hard deny precedes ignore rules;
@@ -52,11 +58,12 @@ token savings; token savings are not subscription cost savings.
 `install` and persistent-memory tools remain pending, not placeholder commands.
 The first slice is tested locally on macOS arm64; the native five-platform CI
 matrix is provided but has not run. Authenticated Claude/Codex smoke tests and a
-current SQLite driver/security review are required before release.
+dependency/license review are required before release.
 
-Build/test commands require `-tags sqlite_fts5`; `make` supplies it. Windows source
-builds additionally need a compatible C compiler (CGO). A plain CGO-disabled build
-does not provide working SQLite. Release binaries have not been published.
+Plain `go build`/`go test` need no CGO and no build tags. A `CGO_ENABLED=0` build
+is verified on macOS arm64; other platforms await the CI run. Only `go test -race`
+needs CGO (a Go race-detector requirement, not an application one).
+Release binaries have not been published.
 
 See [architecture](docs/ARCHITECTURE.md), [roadmap](docs/ROADMAP.md),
 [analytics](docs/ANALYTICS.md), [validation record](docs/VALIDATION.md),

@@ -33,8 +33,9 @@ Manual authenticated smoke test for each client:
 2. In a fixture repository, initialize and index. Connect the stdio server.
 3. Ask the agent to call `memory_status`, then `memory_search` for `RefundPayment`.
 4. Confirm relative source path/lines/hash and clean tool JSON.
-5. Edit the fixture, repeat search: stale warning and no old snippets.
-6. Re-index and verify the new result; disconnect and confirm process exit.
+5. Edit the fixture, repeat search: the new content is found, old snippets are gone.
+6. Call `memory_status` after another edit: `is_stale` is true until the next
+   search; disconnect and confirm process exit.
 
 Protocol subprocess tests do not prove authenticated subscription compatibility.
 Installed clients were inspected using version/help only; no model request or
@@ -46,8 +47,7 @@ Official references checked on 2026-11-09:
 - [Codex MCP](https://learn.chatgpt.com/docs/extend/mcp?surface=cli)
 - [Codex AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
 
-Troubleshooting: build with `-tags sqlite_fts5` if migration reports missing FTS5;
-install a C compiler and enable CGO; initialize before serve; use absolute paths
+Troubleshooting: initialize before serve; use absolute paths
 because clients may launch in another directory. A copied database belongs to its
 original canonical root. Move it aside and initialize/re-index at the new root.
 For `database is locked`, wait for indexing to finish and retry. No partial index

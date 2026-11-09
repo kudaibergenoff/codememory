@@ -2,12 +2,6 @@
 package cli
 
 import (
-	"codememory/internal/analytics"
-	"codememory/internal/config"
-	"codememory/internal/indexer"
-	"codememory/internal/mcp"
-	"codememory/internal/search"
-	"codememory/internal/storage/sqlite"
 	"context"
 	"encoding/json"
 	"errors"
@@ -17,13 +11,20 @@ import (
 	"log/slog"
 	"path/filepath"
 	"time"
+
+	"github.com/kudaibergenoff/codememory/internal/analytics"
+	"github.com/kudaibergenoff/codememory/internal/config"
+	"github.com/kudaibergenoff/codememory/internal/indexer"
+	"github.com/kudaibergenoff/codememory/internal/mcp"
+	"github.com/kudaibergenoff/codememory/internal/search"
+	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
 
 const Version = "0.1.0-dev"
 
 func Run(ctx context.Context, args []string, out, errOut io.Writer) error {
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
-		_, err := fmt.Fprintln(out, "codememory <init|index|search|status|stats|serve|version> [--project DIR]\nsearch: --query TEXT [--limit 10] [--language go] [--path-prefix internal/]")
+		_, err := fmt.Fprintln(out, "codememory <init|index|search|status|stats|serve|version> [--project DIR]\nindex: [--full]  re-read every file, bypassing the size/mtime prefilter\nsearch: --query TEXT [--limit 10] [--language go] [--path-prefix internal/]")
 		return err
 	}
 	if args[0] == "version" {
@@ -39,6 +40,10 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer) error {
 	flags.SetOutput(errOut)
 	project := flags.String("project", ".", "trusted project directory")
 	var input search.Input
+	var full bool
+	if args[0] == "index" {
+		flags.BoolVar(&full, "full", false, "re-read every file, bypassing the size/mtime prefilter")
+	}
 	if args[0] == "search" {
 		flags.StringVar(&input.Query, "query", "", "plain text query")
 		flags.IntVar(&input.Limit, "limit", 10, "maximum matches (1 to 20)")
@@ -91,7 +96,11 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer) error {
 		result, err = search.Query(ctx, s, root, cfg, input)
 	case "index":
 		var indexed sqlite.IndexResult
-		indexed, err = indexer.Index(ctx, s, root, cfg)
+		run := indexer.Index
+		if full {
+			run = indexer.IndexFull
+		}
+		indexed, err = run(ctx, s, root, cfg)
 		result = indexed
 		event.Indexed = indexed.Indexed
 		event.Reused = indexed.Reused

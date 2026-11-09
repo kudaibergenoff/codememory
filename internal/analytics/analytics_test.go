@@ -1,10 +1,11 @@
 package analytics
 
 import (
-	"codememory/internal/storage/sqlite"
 	"context"
 	"testing"
 	"time"
+
+	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
 
 func TestRecord(t *testing.T) {
