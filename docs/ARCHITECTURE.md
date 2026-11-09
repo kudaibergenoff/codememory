@@ -21,7 +21,8 @@ terms use OR and deterministic path/line/id tie-breaking. Search filters are SQL
 parameters. Text from all supported languages is chunked; only Go gets AST facts.
 
 Freshness uses a size/mtime prefilter with SHA-256 as the identity. Each scan
-walks the permitted tree with `lstat` only; a file is read and hashed when its
+walks the permitted tree with `lstat` only, through an `os.Root` opened per
+directory so every lookup is a single path component (one `fstatat` per file); a file is read and hashed when its
 size or mtime differs from the recorded one, and re-parsed only when its hash
 differs. Files modified within 2 s of a scan are recorded as unsettled (mtime 0)
 and re-read next time, so a same-size edit inside one timestamp tick is not

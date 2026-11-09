@@ -1,0 +1,29 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - run: go test ./...
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+      # The tag reaches the shell only through GITHUB_REF_NAME, never via
+      # template expansion, so a crafted tag cannot inject commands.
+      - run: scripts/dist.sh "$GITHUB_REF_NAME"
+      - run: |
+          flags=(--title "$GITHUB_REF_NAME" --generate-notes --verify-tag)
+          [[ "$GITHUB_REF_NAME" == *-* ]] && flags+=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" dist/* "${flags[@]}"
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -88,7 +88,7 @@ func Scan(ctx context.Context, root string, cfg config.Config, prior Prior) (Sna
 	}
 	defer r.Close()
 	w := &walker{ctx: ctx, root: r, cfg: cfg, prior: prior, started: time.Now()}
-	if err := w.walk(".", nil, nil, 0); err != nil {
+	if err := w.walk(".", r, nil, nil, 0); err != nil {
 		return Snapshot{}, err
 	}
 	return w.snap, nil

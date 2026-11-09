@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Large repositories: per-directory `os.Root` walk (search 0.65 s -> 0.10 s on the
+  10k-file Go stdlib) and lower first-index memory (376 -> 260 MiB peak).
+
+- Release packaging: `make dist`, tag-triggered release workflow, CGO-free
+  archives for 5 platforms with SHA256SUMS and THIRD_PARTY_LICENSES; README rewritten.
+
 - memory_context drops candidates below 30% of the best BM25 strength instead of
   padding the budget with weak matches (fixture median response -23%, recall kept).
 

@@ -20,7 +20,8 @@ import (
 	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
 
-const Version = "0.1.0-dev"
+// Version is set at release build time with -ldflags "-X .../internal/cli.Version=vX.Y.Z".
+var Version = "0.1.0-dev"
 
 const usage = `codememory <init|index|search|context|status|stats|serve|version> [--project DIR]
 index:   [--full]  re-read every file, bypassing the size/mtime prefilter

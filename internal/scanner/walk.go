@@ -41,18 +41,21 @@ type walker struct {
 	patterns int
 }
 
-func (w *walker) walk(dir string, gitRules, extraRules []rule, depth int) error {
+// walk lists dir through dirRoot, an os.Root opened on that directory: every
+// lookup inside it is a single path component, so a file costs one fstatat
+// instead of one openat per path segment, and nothing can escape the root.
+func (w *walker) walk(dir string, dirRoot *os.Root, gitRules, extraRules []rule, depth int) error {
 	if err := w.ctx.Err(); err != nil {
 		return err
 	}
 	if depth > maxDepth {
 		return errors.New("directory depth limit exceeded")
 	}
-	gitRules, extraRules, err := w.loadIgnores(dir, gitRules, extraRules)
+	gitRules, extraRules, err := w.loadIgnores(dir, dirRoot, gitRules, extraRules)
 	if err != nil {
 		return err
 	}
-	d, err := w.root.Open(dir)
+	d, err := dirRoot.Open(".")
 	if err != nil {
 		return errors.New("cannot open directory")
 	}
@@ -63,7 +66,7 @@ func (w *walker) walk(dir string, gitRules, extraRules []rule, depth int) error 
 			return errors.New("cannot list directory")
 		}
 		for _, entry := range batch {
-			if err := w.visit(dir, entry, gitRules, extraRules, depth); err != nil {
+			if err := w.visit(dir, dirRoot, entry, gitRules, extraRules, depth); err != nil {
 				return err
 			}
 		}
@@ -75,14 +78,14 @@ func (w *walker) walk(dir string, gitRules, extraRules []rule, depth int) error 
 
 // loadIgnores returns copies of the inherited rules extended with this
 // directory's ignore files; sibling directories never share appended rules.
-func (w *walker) loadIgnores(dir string, gitRules, extraRules []rule) ([]rule, []rule, error) {
+func (w *walker) loadIgnores(dir string, dirRoot *os.Root, gitRules, extraRules []rule) ([]rule, []rule, error) {
 	sets := [len(ignoreFiles)][]rule{append([]rule(nil), gitRules...), append([]rule(nil), extraRules...)}
 	base := dir
 	if base == "." {
 		base = ""
 	}
 	for i, name := range ignoreFiles {
-		rules, err := w.ignoreFile(path.Join(dir, name), base)
+		rules, err := w.ignoreFile(dirRoot, name, base)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -95,8 +98,8 @@ func (w *walker) loadIgnores(dir string, gitRules, extraRules []rule) ([]rule, [
 	return sets[0], sets[1], nil
 }
 
-func (w *walker) ignoreFile(rel, base string) ([]rule, error) {
-	info, err := w.root.Lstat(rel)
+func (w *walker) ignoreFile(dirRoot *os.Root, name, base string) ([]rule, error) {
+	info, err := dirRoot.Lstat(name)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
@@ -106,7 +109,7 @@ func (w *walker) ignoreFile(rel, base string) ([]rule, error) {
 	if !info.Mode().IsRegular() {
 		return nil, errors.New("ignore files must be regular, not symlinks")
 	}
-	b, err := read(w.root, rel, maxIgnoreBytes)
+	b, err := read(dirRoot, name, maxIgnoreBytes)
 	if err != nil {
 		return nil, errors.New("cannot read bounded ignore file")
 	}
@@ -116,7 +119,7 @@ func (w *walker) ignoreFile(rel, base string) ([]rule, error) {
 	return parseRules(base, string(b))
 }
 
-func (w *walker) visit(dir string, entry fs.DirEntry, gitRules, extraRules []rule, depth int) error {
+func (w *walker) visit(dir string, dirRoot *os.Root, entry fs.DirEntry, gitRules, extraRules []rule, depth int) error {
 	if err := w.ctx.Err(); err != nil {
 		return err
 	}
@@ -131,13 +134,18 @@ func (w *walker) visit(dir string, entry fs.DirEntry, gitRules, extraRules []rul
 		return nil
 	}
 	if isDir {
-		return w.walk(rel, gitRules, extraRules, depth+1)
+		sub, err := dirRoot.OpenRoot(entry.Name())
+		if err != nil {
+			return errors.New("cannot open directory")
+		}
+		defer sub.Close()
+		return w.walk(rel, sub, gitRules, extraRules, depth+1)
 	}
-	return w.file(rel)
+	return w.file(dirRoot, entry.Name(), rel)
 }
 
-func (w *walker) file(rel string) error {
-	info, err := w.root.Lstat(rel)
+func (w *walker) file(dirRoot *os.Root, name, rel string) error {
+	info, err := dirRoot.Lstat(name)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil // removed after listing (e.g. editor temp file): treated as deleted
 	}
@@ -158,7 +166,7 @@ func (w *walker) file(rel string) error {
 		}
 		return w.add(File{Path: rel, Hash: p.Hash, Language: Language(rel), Size: size, MtimeNS: mtime, Reused: true})
 	}
-	b, err := read(w.root, rel, w.cfg.MaxFileBytes)
+	b, err := read(dirRoot, name, w.cfg.MaxFileBytes)
 	if err != nil {
 		return errors.New("file changed or could not be safely read; retry")
 	}
