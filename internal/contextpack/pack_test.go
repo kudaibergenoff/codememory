@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/kudaibergenoff/codememory/internal/analytics"
+	"github.com/kudaibergenoff/codememory/internal/memory"
 	"github.com/kudaibergenoff/codememory/internal/search"
 	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
@@ -147,5 +148,18 @@ func TestPackRejectsBudgetSmallerThanEnvelope(t *testing.T) {
 
 	if _, err := pack(base, fakeMatches(1, 1, 5), nil, minTokens); err == nil {
 		t.Fatal("over-budget envelope accepted")
+	}
+}
+
+func TestSizerMatchesFullEncoding(t *testing.T) {
+	budget := maxTokens
+	got := mustPack(t, baseFor(budget), fakeMatches(6, 3, 12), budget)
+	got.Architecture = []memory.Record{{ID: 7, Scope: "*", Title: "t <&>", Body: "b", Status: memory.StatusSourced, Sources: []sqlite.MemorySource{}}}
+	z := newSizer(18, budget, 1)
+
+	for _, r := range []Response{got, func() Response { r := got; r.Architecture = nil; return r }(), func() Response { r := got; r.Files = []string{}; return r }()} {
+		if want := cost(z.withBounds(r)); z.measure(r) != want {
+			t.Fatalf("sizer %d != full encoding %d", z.measure(r), want)
+		}
 	}
 }
