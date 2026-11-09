@@ -36,12 +36,6 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-      # Retries only absorb vulnerability-database download failures; a real
-      # finding fails every attempt.
-      - run: |
-          for attempt in 1 2 3; do
-            go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./... && exit 0
-            echo "govulncheck attempt $attempt failed"; sleep 20
-          done
-          exit 1
-        shell: bash
+      # v1.1.4 panicked on Go 1.27 standard-library code for linux
+      # ("unexpected expr: *ast.KeyValueExpr"); keep govulncheck current.
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
