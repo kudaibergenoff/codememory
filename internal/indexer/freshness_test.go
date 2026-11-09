@@ -249,3 +249,29 @@ func TestFullIndexDetectsChangeWithPreservedMtime(t *testing.T) {
 		t.Fatalf("full index missed the change: %+v", full)
 	}
 }
+
+func TestRepeatedSearchIsCachedUntilFilesChange(t *testing.T) {
+	f := newFixture(t)
+	f.write("pay.go", "package pay\nfunc Payment() {}\n")
+
+	first := f.search("Payment")
+	second := f.search("Payment")
+
+	if hit := first.CacheHit(); hit == nil || *hit {
+		t.Fatalf("first search should be a miss: %v", hit)
+	}
+	if hit := second.CacheHit(); hit == nil || !*hit {
+		t.Fatalf("second search should hit: %v", hit)
+	}
+	a, _ := search.Encode(first)
+	b, _ := search.Encode(second)
+	if string(a) != string(b) {
+		t.Fatalf("cached response differs:\n%s\n%s", a, b)
+	}
+
+	f.write("pay.go", "package pay\nfunc Payment(id string) {}\n")
+	third := f.search("Payment")
+	if hit := third.CacheHit(); hit == nil || *hit || third.Generation == first.Generation {
+		t.Fatalf("edit must invalidate: hit=%v gen=%d", hit, third.Generation)
+	}
+}

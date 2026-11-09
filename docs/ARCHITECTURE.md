@@ -58,9 +58,33 @@ size proxy, not the model's tokenizer. Task words follow the unicode61 tokenizer
 boundaries (letters, numbers and combining marks are word characters). Responses are encoded without HTML escaping (`<`, `>`, `&`
 would otherwise cost 6 bytes each).
 
-Reserved future boundaries, not empty packages: persistent memory and
-architecture facts (`include_architecture` is accepted but adds nothing yet),
-generation-bound query cache, benchmark/reporter and local dashboard.
+Memories (`internal/memory`, schema v3) cite files by SHA-256. Status is
+`sourced` or `unverified` at write time; `stale` is derived on every read when a
+cited file's indexed hash differs or it left the index. Scopes are directory-like:
+a memory applies to its scope, ancestors' memories apply to descendants, and
+`*` (the default, not a valid path, so no directory can collide with it) applies
+everywhere. Scopes must be clean relative directories. A memory saved as
+`unverified` stays so until it is remembered again with indexed sources.
+Applicable memories that do not fit are counted in `memories_omitted`, and a
+warning labels memory text as notes, not instructions. `memory_context` (unless `include_architecture` is
+false) adds memories that apply to the ranked files within a 30% budget reserve,
+sourced before unverified before stale.
+
+`memory_architecture` groups indexed files by directory. Go package names and
+imports are recorded by the parser as AST symbols (kind `import`, never used as
+chunk labels); imports under the root `go.mod` module path are reported as
+directories, the rest only counted. `_test.go` files count as files but do not
+define a module's package or dependencies.
+
+Query cache (`internal/qcache`, schema v4): `memory_search` and `memory_context`
+responses are stored under SHA-256(tool, normalized input, secrets flag, and for
+context the memory revision), bound to the index generation that produced them
+and expiring after 1 h; writing drops other generations and keeps 500 entries.
+Refresh still runs first, so a hit is only possible while the files are
+unchanged. `events.cache_hit` feeds `query_cache_hit_rate` in `stats`; hits are
+avoided retrieval work, never reported as token savings.
+
+Reserved future boundaries, not empty packages: benchmark/reporter and local dashboard.
 
 Analytics writes happen after measured work; latency excludes metric storage and
 network/client execution. Metrics failures log a warning and do not discard a

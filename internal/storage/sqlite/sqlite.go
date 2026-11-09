@@ -27,7 +27,13 @@ const (
 // dsn builds a modernc.org/sqlite URI. Pragmas run on every new connection;
 // immediate transactions reserve the writer lock up front (see ADR-001).
 func dsn(filename string) string {
-	u := url.URL{Scheme: "file", Path: filepath.ToSlash(filename)}
+	p := filepath.ToSlash(filename)
+	if !strings.HasPrefix(p, "/") {
+		// Windows "C:/x" must become "file:///C:/x": in "file://C:/x" SQLite
+		// would read "C:" as the URI authority and refuse to open the database.
+		p = "/" + p
+	}
+	u := url.URL{Scheme: "file", Path: p}
 	pragmas := []string{
 		"_pragma=foreign_keys(1)",
 		"_pragma=journal_mode(WAL)",

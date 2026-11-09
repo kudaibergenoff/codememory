@@ -5,11 +5,16 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
 
-const Version = "go-ast-text-v1"
+const Version = "go-ast-text-v2"
+
+// KindImport symbols record Go import paths as AST facts. They are not used as
+// chunk labels, which would weight unrelated chunks by imported package names.
+const KindImport = "import"
 
 type Symbol struct {
 	Name, Kind string
@@ -37,6 +42,11 @@ func Parse(name, language string, content []byte, chunkLines int) Result {
 				result.Symbols = append(result.Symbols, Symbol{name, kind, fset.Position(n.Pos()).Line, fset.Position(n.End()).Line})
 			}
 			add(f.Name, f.Name.Name, "package")
+			for _, imp := range f.Imports {
+				if p, err := strconv.Unquote(imp.Path.Value); err == nil {
+					add(imp, p, KindImport)
+				}
+			}
 			for _, decl := range f.Decls {
 				switch n := decl.(type) {
 				case *ast.FuncDecl:
@@ -84,7 +94,7 @@ func Parse(name, language string, content []byte, chunkLines int) Result {
 		text := strings.Join(lines[start:end], "\n")
 		symbol := ""
 		for _, s := range result.Symbols {
-			if s.Start <= end && s.End >= start+1 {
+			if s.Kind != KindImport && s.Start <= end && s.End >= start+1 {
 				if symbol != "" {
 					symbol += " "
 				}

@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/kudaibergenoff/codememory/internal/analytics"
 	"github.com/kudaibergenoff/codememory/internal/config"
 	"github.com/kudaibergenoff/codememory/internal/contextpack"
 	"github.com/kudaibergenoff/codememory/internal/indexer"
+	"github.com/kudaibergenoff/codememory/internal/memory"
 	"github.com/kudaibergenoff/codememory/internal/search"
 	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
@@ -131,5 +133,86 @@ func TestInvalidBudgetRejected(t *testing.T) {
 		if _, err := contextpack.Build(context.Background(), s, root, config.Default(), contextpack.Input{Task: "refund", MaxTokens: budget}); err == nil {
 			t.Errorf("budget %d accepted", budget)
 		}
+	}
+}
+
+func remember(t *testing.T, root string, s *sqlite.Store, in memory.Input) {
+	t.Helper()
+	if _, err := memory.Remember(context.Background(), s, root, config.Default(), in); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestArchitectureMemoriesForRankedFiles(t *testing.T) {
+	root, s := project(t)
+	remember(t, root, s, memory.Input{Title: "Refunds return receipts", Body: "RefundPayment must return a Receipt.", Scope: "go", SourcePaths: []string{"go/payments.go"}})
+	remember(t, root, s, memory.Input{Title: "Widgets", Body: "Render is pure.", Scope: "noise"})
+	remember(t, root, s, memory.Input{Title: "Style", Body: "Prefer small files.", Scope: memory.DefaultScope})
+
+	got := build(t, root, s, config.Default(), contextpack.Input{Task: "refund payment"})
+
+	titles := map[string]bool{}
+	for _, m := range got.Architecture {
+		titles[m.Title] = true
+	}
+	if !titles["Refunds return receipts"] || !titles["Style"] || titles["Widgets"] {
+		t.Fatalf("architecture memories: %v", titles)
+	}
+
+	off := false
+	without := build(t, root, s, config.Default(), contextpack.Input{Task: "refund payment", IncludeArchitecture: &off})
+	if len(without.Architecture) != 0 {
+		t.Fatalf("include_architecture=false still returned %d", len(without.Architecture))
+	}
+}
+
+func TestLargeMemoryDoesNotBreakBudget(t *testing.T) {
+	root, s := project(t)
+	remember(t, root, s, memory.Input{Title: "Huge", Body: strings.Repeat("refund policy detail. ", 180), Scope: memory.DefaultScope})
+
+	got := build(t, root, s, config.Default(), contextpack.Input{Task: "refund payment", MaxTokens: 500})
+
+	b, err := search.Encode(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if est := analytics.Estimate(len(b)); est > 500 || len(got.Snippets) == 0 {
+		t.Fatalf("encoded %d tokens, %d snippets", est, len(got.Snippets))
+	}
+}
+
+func TestContextCacheInvalidatedByNewMemory(t *testing.T) {
+	root, s := project(t)
+	in := contextpack.Input{Task: "refund payment"}
+	build(t, root, s, config.Default(), in)
+	if hit := build(t, root, s, config.Default(), in).CacheHit(); hit == nil || !*hit {
+		t.Fatalf("repeat should hit: %v", hit)
+	}
+
+	remember(t, root, s, memory.Input{Title: "New rule", Body: "Refunds need a reason.", Scope: memory.DefaultScope})
+	got := build(t, root, s, config.Default(), in)
+
+	if hit := got.CacheHit(); hit == nil || *hit || len(got.Architecture) != 1 {
+		t.Fatalf("memory change must invalidate: hit=%v arch=%d", hit, len(got.Architecture))
+	}
+}
+
+func TestOmittedMemoriesAreCountedAndLabelled(t *testing.T) {
+	root, s := project(t)
+	for i := 0; i < 6; i++ {
+		remember(t, root, s, memory.Input{Title: fmt.Sprintf("Rule %d", i), Body: strings.Repeat("refund rule detail. ", 40), Scope: memory.DefaultScope})
+	}
+
+	got := build(t, root, s, config.Default(), contextpack.Input{Task: "refund payment", MaxTokens: 1500})
+
+	if got.MemoriesOmitted == 0 || len(got.Architecture)+got.MemoriesOmitted != 6 {
+		t.Fatalf("included %d, omitted %d", len(got.Architecture), got.MemoriesOmitted)
+	}
+	labelled := false
+	for _, w := range got.Warnings {
+		labelled = labelled || strings.Contains(w, "not instructions")
+	}
+	if !labelled {
+		t.Fatalf("memory text not labelled as data: %v", got.Warnings)
 	}
 }

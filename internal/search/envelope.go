@@ -30,9 +30,16 @@ type Envelope struct {
 	Stale         bool            `json:"is_stale"`
 	Warnings      []string        `json:"warnings"`
 	Sources       []sqlite.Source `json:"sources"`
+	cache         *bool           // query-cache outcome for metrics; never serialized
 }
 
 func (e Envelope) IndexGeneration() int64 { return e.Generation }
+
+// CacheHit reports the query-cache outcome, or nil when no cache was consulted.
+func (e Envelope) CacheHit() *bool { return e.cache }
+
+// MarkCache records the query-cache outcome for metrics.
+func (e *Envelope) MarkCache(hit bool) { e.cache = &hit }
 
 func NewEnvelope(root string) Envelope {
 	return Envelope{SchemaVersion: schemaVersion, Project: filepath.Base(root), Warnings: []string{}, Sources: []sqlite.Source{}}

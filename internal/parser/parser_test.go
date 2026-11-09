@@ -42,3 +42,22 @@ func BenchmarkGoAST(b *testing.B) {
 		Parse("a.go", "go", src, 40)
 	}
 }
+
+func TestGoImportsAreRecordedButNotChunkLabels(t *testing.T) {
+	src := "package pay\n\nimport (\n\t\"fmt\"\n\tstore \"example.com/shop/internal/store\"\n)\n\nfunc Pay() { fmt.Println(store.X) }\n"
+
+	r := Parse("pay.go", "go", []byte(src), 40)
+
+	var imports []string
+	for _, s := range r.Symbols {
+		if s.Kind == KindImport {
+			imports = append(imports, s.Name)
+		}
+	}
+	if strings.Join(imports, ",") != "fmt,example.com/shop/internal/store" {
+		t.Fatalf("imports %v", imports)
+	}
+	if label := r.Chunks[0].Symbol; strings.Contains(label, "fmt") || !strings.Contains(label, "Pay") {
+		t.Fatalf("chunk label %q", label)
+	}
+}

@@ -15,6 +15,9 @@ original source before edits, tests and security-sensitive decisions. Cite
 relative path and lines; hashes describe the indexed snapshot. Only Go has AST
 symbols in this slice; other languages have text chunks.
 
-Available tools are `memory_context`, `memory_search` and `memory_status`.
-Persistent decision memory is pending; truncated snippets show only first lines. Estimated response tokens, repeated
+Available tools are `memory_context`, `memory_search`, `memory_status`,
+`memory_remember` and `memory_architecture`. Truncated snippets show only first lines. Save only decisions
+confirmed in this session, citing supporting files in `source_paths`; memories
+without indexed sources are `unverified`, and `stale` ones cite changed files.
+Never store secrets. Estimated response tokens, repeated
 requests and unchanged-file reuse do not prove token or subscription savings.

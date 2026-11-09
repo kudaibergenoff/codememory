@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Windows: valid SQLite URI (`file:///C:/...`); CI is green on all five platforms.
+- Analytics: numeric event time and agent attribution (schema v5); `stats`
+  filters `--today`, `--last`, `--agent`; `report --format json|csv`.
+
+- Query cache (schema v4) for `memory_search` and `memory_context`, bound to the
+  index generation and memory revision; `stats` reports hits, misses and rate.
+
+- `memory_architecture` MCP tool and `codememory architecture`: modules, Go
+  packages and internal imports from go/ast (parser v2), plus scoped memories.
+- `memory_context` includes applicable curated memories by default.
+
+- `memory_remember` MCP tool and `codememory remember`: curated memories with
+  file SHA-256 provenance (schema v3); `sourced`/`unverified`, `stale` derived on
+  read; same scope+title updates in place; secret-like text refused.
+
 - `memory_context` MCP tool and `codememory context`: task-driven, deduplicated,
   ranked snippets packed so the encoded JSON response stays within `max_tokens`.
 - JSON responses are no longer HTML-escaped (`<`, `>`, `&` cost 6 bytes each).

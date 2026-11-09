@@ -5,11 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"path"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/kudaibergenoff/codememory/internal/config"
 	"github.com/kudaibergenoff/codememory/internal/indexer"
+	"github.com/kudaibergenoff/codememory/internal/qcache"
 	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
 
@@ -35,6 +38,15 @@ type Response struct {
 
 func newResponse(e Envelope) Response {
 	return Response{Envelope: e, Matches: []sqlite.Match{}}
+}
+
+// CheckRelative rejects anything but a clean, project-relative slash path.
+func CheckRelative(p string) error {
+	if p == "" || len(p) > maxPrefixBytes || !utf8.ValidString(p) || strings.Contains(p, "\\") ||
+		path.IsAbs(p) || path.Clean(p) != p || p == ".." || strings.HasPrefix(p, "../") {
+		return fmt.Errorf("path %q must be a clean project-relative path", p)
+	}
+	return nil
 }
 
 // normalize validates filters and returns the input with defaults applied.
@@ -74,6 +86,15 @@ func Query(ctx context.Context, s *sqlite.Store, root string, cfg config.Config,
 		e, err := Withheld(ctx, s, root)
 		return newResponse(e), err
 	}
+	cache := qcache.New(s)
+	key := qcache.Key("memory_search", in, refreshed.Secrets > 0)
+	var cached Response
+	if hit, err := cache.Get(ctx, key, refreshed.Generation, &cached); err != nil {
+		slog.Warn("query cache read failed", "error", err)
+	} else if hit {
+		cached.MarkCache(true)
+		return cached, nil
+	}
 	result, err := s.Search(ctx, expr, in.Language, in.PathPrefix, in.Limit)
 	if err != nil {
 		return Response{}, err
@@ -83,6 +104,10 @@ func Query(ctx context.Context, s *sqlite.Store, root string, cfg config.Config,
 	for _, m := range result.Matches {
 		response.Sources = append(response.Sources, m.Source)
 	}
+	if err := cache.Put(ctx, key, result.Generation, response); err != nil {
+		slog.Warn("query cache write failed", "error", err)
+	}
+	response.MarkCache(false)
 	return response, nil
 }
 
