@@ -61,6 +61,7 @@ func Build(ctx context.Context, s *sqlite.Store, root string, cfg config.Config,
 	if err != nil {
 		return Response{}, err
 	}
+	phrases := search.Phrases(in.Task)
 	base := Response{Terms: terms, TokenBudget: budget, Estimator: analytics.Estimator}
 	refreshed, ok, err := search.Refresh(ctx, s, root, cfg)
 	if err != nil {
@@ -78,7 +79,7 @@ func Build(ctx context.Context, s *sqlite.Store, root string, cfg config.Config,
 		return Response{}, err
 	}
 	cache := qcache.New(s)
-	key := qcache.Key("memory_context", terms, budget, include, revision, refreshed.Secrets > 0)
+	key := qcache.Key("memory_context", terms, phrases, budget, include, revision, refreshed.Secrets > 0)
 	var cached Response
 	if hit, err := cache.Get(ctx, key, refreshed.Generation, &cached); err != nil {
 		slog.Warn("query cache read failed", "error", err)
@@ -87,7 +88,7 @@ func Build(ctx context.Context, s *sqlite.Store, root string, cfg config.Config,
 		cached.MarkRequest(key)
 		return cached, nil
 	}
-	resp, err := assemble(ctx, s, root, base, refreshed, include, budget)
+	resp, err := assemble(ctx, s, root, base, phrases, refreshed, include, budget)
 	if err != nil {
 		return Response{}, err
 	}
@@ -99,8 +100,9 @@ func Build(ctx context.Context, s *sqlite.Store, root string, cfg config.Config,
 	return resp, nil
 }
 
-func assemble(ctx context.Context, s *sqlite.Store, root string, base Response, refreshed sqlite.IndexResult, include bool, budget int) (Response, error) {
-	result, err := s.Search(ctx, search.OrExpression(base.Terms, true), "", "", candidateLimit)
+func assemble(ctx context.Context, s *sqlite.Store, root string, base Response, phrases []string, refreshed sqlite.IndexResult, include bool, budget int) (Response, error) {
+	result, err := s.Search(ctx, sqlite.Query{Expression: search.WithPhrases(search.OrExpression(base.Terms, true), phrases),
+		Exact: search.PhraseExpression(phrases), Limit: candidateLimit})
 	if err != nil {
 		return Response{}, err
 	}

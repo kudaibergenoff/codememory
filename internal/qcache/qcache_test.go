@@ -38,6 +38,17 @@ func TestKeyDependsOnEveryPart(t *testing.T) {
 	}
 }
 
+func TestKeyDependsOnResultsVersion(t *testing.T) {
+	parts := []any{map[string]any{"query": "pay"}}
+
+	if Key("memory_search", parts...) != keyFor(ResultsVersion, "memory_search", parts...) {
+		t.Fatal("Key must use the current results version")
+	}
+	if keyFor(ResultsVersion, "memory_search", parts...) == keyFor(ResultsVersion-1, "memory_search", parts...) {
+		t.Fatal("entries from an older ranking would be served")
+	}
+}
+
 func TestHitOnlyForSameGenerationBeforeExpiry(t *testing.T) {
 	ctx := context.Background()
 	s := store(t)
