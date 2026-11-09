@@ -90,7 +90,7 @@ func parse(args []string, errOut io.Writer) (options, error) {
 		flags.StringVar(&opts.search.PathPrefix, "path-prefix", "", "relative path prefix")
 	case "context":
 		flags.StringVar(&opts.context.Task, "task", "", "task description in natural language")
-		flags.IntVar(&opts.context.MaxTokens, "max-tokens", 0, "response budget in estimated tokens (300 to 8000, default 1500)")
+		flags.IntVar(&opts.context.MaxTokens, "max-tokens", 0, "response budget in estimated tokens (500 to 8000, default 1500)")
 	}
 	if err := flags.Parse(args[1:]); err != nil {
 		return opts, err

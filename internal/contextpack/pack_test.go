@@ -34,6 +34,15 @@ func baseFor(budget int) Response {
 	return Response{Envelope: search.NewEnvelope("/tmp/project"), Terms: []string{"refund", "payment"}, TokenBudget: budget, Estimator: analytics.Estimator}
 }
 
+func mustPack(t *testing.T, base Response, candidates []sqlite.Match, budget int) Response {
+	t.Helper()
+	r, err := pack(base, candidates, budget)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
 func encodedTokens(t *testing.T, r Response) int {
 	t.Helper()
 	b, err := search.Encode(r)
@@ -46,7 +55,7 @@ func encodedTokens(t *testing.T, r Response) int {
 func TestPackNeverExceedsBudgetIncludingJSON(t *testing.T) {
 	candidates := fakeMatches(12, 4, 40)
 	for _, budget := range []int{minTokens, 400, 750, 1500, 3000, maxTokens} {
-		got := pack(baseFor(budget), candidates, budget)
+		got := mustPack(t, baseFor(budget), candidates, budget)
 
 		actual := encodedTokens(t, got)
 		if actual > budget || got.EstimatedTokens > budget || got.EstimatedTokens < actual {
@@ -64,7 +73,7 @@ func TestPackNeverExceedsBudgetIncludingJSON(t *testing.T) {
 func TestPackTruncatesInsteadOfDroppingTopResult(t *testing.T) {
 	candidates := fakeMatches(1, 1, 200)
 
-	got := pack(baseFor(minTokens), candidates, minTokens)
+	got := mustPack(t, baseFor(minTokens), candidates, minTokens)
 
 	if len(got.Snippets) != 1 || !got.Snippets[0].Truncated {
 		t.Fatalf("expected one truncated snippet: %+v", got.Snippets)
@@ -78,7 +87,7 @@ func TestPackTruncatesInsteadOfDroppingTopResult(t *testing.T) {
 func TestPackCapsSnippetsPerFileAndCountsOmitted(t *testing.T) {
 	candidates := fakeMatches(2, 5, 3)
 
-	got := pack(baseFor(maxTokens), candidates, maxTokens)
+	got := mustPack(t, baseFor(maxTokens), candidates, maxTokens)
 
 	perFile := map[string]int{}
 	for _, s := range got.Snippets {
@@ -102,7 +111,7 @@ func TestPackDropsOverlappingChunks(t *testing.T) {
 	overlap := m
 	overlap.Start, overlap.End = m.Start+2, m.End+2
 
-	got := pack(baseFor(maxTokens), []sqlite.Match{m, overlap}, maxTokens)
+	got := mustPack(t, baseFor(maxTokens), []sqlite.Match{m, overlap}, maxTokens)
 
 	if len(got.Snippets) != 1 {
 		t.Fatalf("overlapping chunk kept: %d", len(got.Snippets))
@@ -129,5 +138,14 @@ func TestTaskTerms(t *testing.T) {
 		if _, err := taskTerms(bad); err == nil {
 			t.Errorf("accepted %q", bad[:min(len(bad), 10)])
 		}
+	}
+}
+
+func TestPackRejectsBudgetSmallerThanEnvelope(t *testing.T) {
+	base := baseFor(minTokens)
+	base.Project = strings.Repeat("\x01", 400) // 6 bytes each once JSON-escaped
+
+	if _, err := pack(base, fakeMatches(1, 1, 5), minTokens); err == nil {
+		t.Fatal("over-budget envelope accepted")
 	}
 }

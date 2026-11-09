@@ -71,7 +71,7 @@ func TestSDKToolsAndMetrics(t *testing.T) {
 		args map[string]any
 		fail bool
 	}{{"memory_search", map[string]any{"query": "Payment"}, false}, {"memory_status", map[string]any{}, false}, {"memory_search", map[string]any{"query": "Payment", "limit": 1000}, true},
-		{"memory_context", map[string]any{"task": "add payment refund", "max_tokens": 400}, false},
+		{"memory_context", map[string]any{"task": "add payment refund", "max_tokens": 600}, false},
 		{"memory_context", map[string]any{"task": "payment", "max_tokens": 10}, true}} {
 		result, err := session.CallTool(ctx, &sdk.CallToolParams{Name: call.name, Arguments: call.args})
 		if err != nil {

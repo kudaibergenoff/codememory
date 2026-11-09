@@ -16,3 +16,16 @@ func TestLiteralQuery(t *testing.T) {
 		t.Fatalf("unsafe %q %v", got, err)
 	}
 }
+
+func TestWordsMatchFTSTokenizerBoundaries(t *testing.T) {
+	cases := map[string][]string{
+		"résumé file":      {"résumé", "file"}, // NFD combining marks stay inside the word
+		"x² refund_payment":  {"x²", "refund", "payment"},
+		"RefundPayment, v2!": {"refundpayment", "v2"},
+	}
+	for in, want := range cases {
+		if got := Words(in); strings.Join(got, "|") != strings.Join(want, "|") {
+			t.Errorf("%q: got %q, want %q", in, got, want)
+		}
+	}
+}

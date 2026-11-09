@@ -20,7 +20,7 @@ const (
 // pack greedily adds candidates in rank order while the encoded response fits
 // the budget. Counters that are only known at the end are measured at an
 // upper bound, so the final response can only be smaller than measured.
-func pack(base Response, candidates []sqlite.Match, budget int) Response {
+func pack(base Response, candidates []sqlite.Match, budget int) (Response, error) {
 	picked := selectCandidates(candidates)
 	bound := len(candidates)
 	r := base
@@ -35,6 +35,9 @@ func pack(base Response, candidates []sqlite.Match, budget int) Response {
 		return cost(x)
 	}
 	empty := shrinkToFit(r, budget, measure)
+	if measure(empty) > budget {
+		return Response{}, fmt.Errorf("max_tokens %d is smaller than the response envelope; raise it", budget)
+	}
 	ranked := rankedFiles(picked)
 	// A few file names first: the cheapest navigation, kept even when large
 	// snippets would otherwise consume the whole budget...
@@ -49,7 +52,7 @@ func pack(base Response, candidates []sqlite.Match, budget int) Response {
 	r.Summary = summary(len(r.Snippets), len(r.Files), r.Omitted, budget)
 	r.EstimatedTokens = budget
 	r.EstimatedTokens = cost(r) // the real value has no more digits than budget
-	return r
+	return r, nil
 }
 
 func cost(r Response) int {

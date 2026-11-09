@@ -14,9 +14,12 @@ const (
 	minPrefixLen = 3
 )
 
-// Words splits text into unique lower-case letter/digit runs, in order.
+// Words splits text into unique lower-case words, in order. Like the FTS5
+// unicode61 tokenizer, letters, numbers (incl. "²") and combining marks are word
+// characters, so NFD "résumé" stays one word and the tokenizer folds it.
 func Words(text string) []string {
-	fields := strings.FieldsFunc(text, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
+	isSeparator := func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsNumber(r) && !unicode.Is(unicode.M, r) }
+	fields := strings.FieldsFunc(text, isSeparator)
 	words := make([]string, 0, len(fields))
 	seen := make(map[string]bool, len(fields))
 	for _, f := range fields {

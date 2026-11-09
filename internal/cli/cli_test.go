@@ -52,13 +52,13 @@ func TestContextCommand(t *testing.T) {
 	}
 	out.Reset()
 
-	err := Run(ctx, []string{"context", "--task", "refund a payment", "--max-tokens", "400", "--project", root}, &out, &errOut)
+	err := Run(ctx, []string{"context", "--task", "refund a payment", "--max-tokens", "600", "--project", root}, &out, &errOut)
 
 	if err != nil {
 		t.Fatalf("%v %s", err, errOut.String())
 	}
 	text := out.String()
-	if !strings.Contains(text, `"path":"pay.go"`) || !strings.Contains(text, `"token_budget":400`) {
+	if !strings.Contains(text, `"path":"pay.go"`) || !strings.Contains(text, `"token_budget":600`) {
 		t.Fatalf("unexpected output: %s", text)
 	}
 	if strings.Contains(text, "\\u003c") || !strings.Contains(text, "<payment> &") {

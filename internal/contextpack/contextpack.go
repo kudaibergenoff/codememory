@@ -13,14 +13,14 @@ import (
 
 const (
 	defaultTokens  = 1500
-	minTokens      = 300
+	minTokens      = 500 // below this, envelope + one snippet's provenance may not fit
 	maxTokens      = 8000
 	candidateLimit = 60
 )
 
 type Input struct {
 	Task                string `json:"task" jsonschema:"The task in natural language; identifiers help ranking. Up to 4000 bytes."`
-	MaxTokens           int    `json:"max_tokens,omitempty" jsonschema:"Response budget in estimated tokens, 300 to 8000, default 1500. Counts the whole JSON response."`
+	MaxTokens           int    `json:"max_tokens,omitempty" jsonschema:"Response budget in estimated tokens, 500 to 8000, default 1500. Counts the whole JSON response."`
 	IncludeArchitecture bool   `json:"include_architecture,omitempty" jsonschema:"Reserved: curated architecture memories are not stored yet, so nothing is added."`
 }
 
@@ -62,14 +62,14 @@ func Build(ctx context.Context, s *sqlite.Store, root string, cfg config.Config,
 		if base.Envelope, err = search.Withheld(ctx, s, root); err != nil {
 			return Response{}, err
 		}
-		return pack(base, nil, budget), nil
+		return pack(base, nil, budget)
 	}
 	result, err := s.Search(ctx, search.OrExpression(terms, true), "", "", candidateLimit)
 	if err != nil {
 		return Response{}, err
 	}
 	base.Envelope = search.Fresh(root, result.Generation, refreshed)
-	return pack(base, result.Matches, budget), nil
+	return pack(base, result.Matches, budget)
 }
 
 func budgetOf(requested int) (int, error) {

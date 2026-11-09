@@ -51,8 +51,11 @@ greedily: a few ranked file names (15% reserve), then snippets in rank order,
 truncated to a line prefix when they do not fit whole, then more file names.
 Every step measures the *encoded* response with `utf8-bytes-div-3-ceil-v1`, and
 counters known only at the end are measured at upper bounds, so the delivered
-JSON never exceeds `max_tokens` by this estimate. It is a size proxy, not the
-model's tokenizer. Responses are encoded without HTML escaping (`<`, `>`, `&`
+JSON never exceeds `max_tokens` (500 to 8000) by this estimate; if even the empty
+envelope does not fit, an error is returned instead. The top snippet is usually
+but not always included: each snippet carries ~130 tokens of provenance. It is a
+size proxy, not the model's tokenizer. Task words follow the unicode61 tokenizer's
+boundaries (letters, numbers and combining marks are word characters). Responses are encoded without HTML escaping (`<`, `>`, `&`
 would otherwise cost 6 bytes each).
 
 Reserved future boundaries, not empty packages: persistent memory and

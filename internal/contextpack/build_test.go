@@ -89,7 +89,7 @@ func TestRelevantFilesRankInTopFive(t *testing.T) {
 
 func TestEncodedResponseStaysWithinBudget(t *testing.T) {
 	root, s := project(t)
-	for _, budget := range []int{300, 600, 1500} {
+	for _, budget := range []int{500, 900, 1500} {
 		got := build(t, root, s, config.Default(), contextpack.Input{Task: "refund payment widget render endpoint", MaxTokens: budget})
 
 		b, err := search.Encode(got)
