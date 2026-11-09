@@ -33,3 +33,32 @@ from the text column) and an agent category derived from MCP `clientInfo`
 names are not stored. `stats` and `report` accept `--today` or `--last <=30d`
 and `--agent`; `report --format csv` writes one row per UTC day, agent, channel
 and tool. Verified savings remain `null` in every output.
+
+## Benchmark
+
+`codememory benchmark` runs an embedded suite in a temporary copy of a small
+fixture project (5 positive tasks, a task with no relevant code and a memory whose
+cited file changed). `--tasks file.json` runs your own tasks against the project:
+
+```json
+{"tasks":[
+  {"id":"refund","task":"add a partial refund limit","expect_files":["payments/refund.go"]},
+  {"id":"none","task":"configure the helm chart","expect_no_match":true},
+  {"id":"stale","task":"refund rules","expect_memory_status":"stale"}
+]}
+```
+
+Per task it records recall of the expected files (returned files or snippets),
+the estimated tokens of the encoded `memory_context` response, a lexical
+baseline (every permitted file containing a task term, read in full), an oracle
+(only the expected files, read in full), latency and whether the query cache hit.
+`estimated_savings_pct = (baseline - context) / baseline * 100`, only when the
+baseline is positive; negative values are reported, never hidden. The lexical
+baseline overstates savings on large repositories (agents rarely read every
+match); compare with the oracle too. `verified_token_savings` stays `null`.
+
+`codememory optimize` turns the index, analytics and the latest benchmark into
+suggestions (large directories, secret-like exclusions, tool errors, stale
+memories, budget saturation, recall misses, negative savings). It never applies
+them. `codememory dashboard` shows the same local data read-only on loopback;
+there is no demo data.

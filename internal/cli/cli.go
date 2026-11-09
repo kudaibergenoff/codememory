@@ -7,11 +7,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/kudaibergenoff/codememory/internal/architecture"
 	"github.com/kudaibergenoff/codememory/internal/config"
 	"github.com/kudaibergenoff/codememory/internal/contextpack"
+	"github.com/kudaibergenoff/codememory/internal/dashboard"
 	"github.com/kudaibergenoff/codememory/internal/mcp"
 	"github.com/kudaibergenoff/codememory/internal/memory"
 	"github.com/kudaibergenoff/codememory/internal/search"
@@ -31,9 +33,12 @@ stats:   [--today | --last 30d] [--agent claude|codex|unknown]
 report:  [--format json|csv] [--today | --last 30d] [--agent ...]
 install: claude|codex [--yes]   shows a diff; writes only with --yes
 clean:   [--all] [--yes]        index only; --all also removes memories and analytics
-doctor:  read-only diagnostics`
+doctor:  read-only diagnostics
+benchmark: [--tasks FILE]     built-in fixture suite, or your tasks against this project
+optimize: read-only suggestions from index, analytics and the latest benchmark
+dashboard: [--addr 127.0.0.1:0] local read-only web view (loopback only)`
 
-var commands = map[string]bool{"init": true, "index": true, "search": true, "context": true, "remember": true, "architecture": true, "status": true, "stats": true, "report": true, "doctor": true, "install": true, "clean": true, "serve": true}
+var commands = map[string]bool{"init": true, "index": true, "search": true, "context": true, "remember": true, "architecture": true, "status": true, "stats": true, "report": true, "doctor": true, "install": true, "clean": true, "benchmark": true, "optimize": true, "dashboard": true, "serve": true}
 
 type options struct {
 	command string
@@ -48,6 +53,8 @@ type options struct {
 	client  string
 	yes     bool
 	all     bool
+	tasks   string
+	addr    string
 }
 
 func Run(ctx context.Context, args []string, out, errOut io.Writer) error {
@@ -92,8 +99,13 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer) error {
 		return err
 	}
 	defer s.Close()
-	if opts.command == "serve" {
+	switch opts.command {
+	case "serve":
 		return mcp.Serve(ctx, s, root, Version)
+	case "dashboard":
+		return dashboard.Serve(ctx, s, filepath.Base(root), opts.addr, func(url string) {
+			_ = writeJSON(out, map[string]string{"url": url, "note": "Read-only local view; press Ctrl-C to stop."})
+		})
 	}
 	return execute(ctx, opts, s, root, cfg, out)
 }
@@ -127,6 +139,10 @@ func parse(args []string, errOut io.Writer) (options, error) {
 		flags.StringVar(&opts.window.last, "last", "", "only events in this window, e.g. 7d or 12h (max 30d)")
 		flags.StringVar(&opts.window.agent, "agent", "", "only events from claude, codex or unknown")
 		flags.StringVar(&opts.window.format, "format", "json", "report format: json or csv")
+	case "dashboard":
+		flags.StringVar(&opts.addr, "addr", "127.0.0.1:0", "loopback address to listen on")
+	case "benchmark":
+		flags.StringVar(&opts.tasks, "tasks", "", "JSON task file to run against this project (default: built-in suite)")
 	case "architecture":
 		flags.StringVar(&opts.arch.Scope, "scope", "", "project-relative directory (default: whole project)")
 	case "remember":

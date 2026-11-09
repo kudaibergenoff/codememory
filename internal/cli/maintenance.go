@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/kudaibergenoff/codememory/internal/benchmark"
 	"github.com/kudaibergenoff/codememory/internal/config"
 	"github.com/kudaibergenoff/codememory/internal/doctor"
 	"github.com/kudaibergenoff/codememory/internal/install"
@@ -99,4 +100,36 @@ func runClean(ctx context.Context, root string, opts options, out io.Writer) err
 
 func runDoctor(ctx context.Context, root string, out io.Writer) error {
 	return writeJSON(out, doctor.Run(ctx, root, Version))
+}
+
+// runBenchmark runs the built-in suite (temporary fixture copy) or a task file
+// against root, and keeps the report for optimize and dashboard.
+func runBenchmark(ctx context.Context, s *sqlite.Store, root string, cfg config.Config, tasks string) (any, error) {
+	var report benchmark.Report
+	var err error
+	if tasks == "" {
+		report, err = benchmark.Builtin(ctx)
+	} else {
+		f, openErr := os.Open(tasks)
+		if openErr != nil {
+			return nil, fmt.Errorf("open tasks: %w", openErr)
+		}
+		defer f.Close()
+		suite, loadErr := benchmark.LoadSuite(f)
+		if loadErr != nil {
+			return nil, loadErr
+		}
+		report, err = benchmark.RunSuite(ctx, s, root, cfg, suite, filepath.Base(tasks))
+	}
+	if err != nil {
+		return nil, err
+	}
+	payload, err := search.Encode(report)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.SaveBenchmark(ctx, report.Suite, payload); err != nil {
+		return nil, err
+	}
+	return report, nil
 }

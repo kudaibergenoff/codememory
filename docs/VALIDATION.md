@@ -75,3 +75,22 @@ All passed on macOS arm64. Network access was available: `go mod tidy`
 completed and `govulncheck ./...` reported no vulnerabilities. The existing
 repository database opened unchanged; a re-index and search succeeded.
 The module path is now `github.com/kudaibergenoff/codememory`.
+
+## Addendum 2026-11-09 — CI and benchmark
+
+CI is green on Linux amd64/arm64, macOS arm64/amd64 and Windows amd64 after two
+Windows fixes (LF line endings via .gitattributes; `file:///C:/...` SQLite URI).
+
+`codememory benchmark` (estimates from local response sizes, not billed tokens):
+
+- Built-in fixture (14 tiny files): 7/7 tasks pass, mean recall 1.0, but the
+  median estimated savings vs. the lexical baseline is -187%: responses carry a
+  fixed overhead and fill the budget, which exceeds reading a few small files.
+- This repository at cbac858 (79 files), 6 tasks with known answer files: recall
+  1.0 on all; context about 1,470-1,500 tokens vs. a lexical baseline of
+  83,000-97,500 tokens (about 98% estimated, an upper bound because agents rarely
+  read every match) and an oracle of 590-3,360 tokens for reading exactly the
+  right files. A negative task failed correctly: its phrase exists in this
+  repository's own test data.
+
+No agent-level token savings are claimed; client usage data is unavailable.

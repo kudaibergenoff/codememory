@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `benchmark` (embedded fixture suite with negative cases, or `--tasks`),
+  read-only `optimize` suggestions and a loopback-only read-only `dashboard`.
+- Context packing measures responses incrementally (7.2 ms -> 0.9 ms per pack).
+
 - `install claude|codex` (dry-run diffs, `--yes` to apply, idempotent marked
   blocks, atomic writes, symlink-safe), read-only `doctor`, and `clean`
   (index only by default; `--all` removes the state directory).
