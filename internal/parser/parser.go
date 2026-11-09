@@ -10,7 +10,9 @@ import (
 	"unicode/utf8"
 )
 
-const Version = "go-ast-text-v2"
+// Version is part of the index config hash: a change re-parses every file.
+// v3: method symbols are named Recv.Method and functions record Refs.
+const Version = "go-ast-text-v3"
 
 // KindImport symbols record Go import paths as AST facts. They are not used as
 // chunk labels, which would weight unrelated chunks by imported package names.
@@ -44,6 +46,7 @@ type Chunk struct {
 type Result struct {
 	Symbols    []Symbol
 	Chunks     []Chunk
+	Refs       []Ref // Go only: references from functions and methods
 	ParseError bool
 }
 
@@ -71,7 +74,7 @@ func Parse(name, language string, content []byte, chunkLines int) Result {
 					if n.Recv != nil {
 						kind = "method"
 					}
-					add(n, n.Name.Name, kind)
+					add(n, funcName(n), kind)
 				case *ast.GenDecl:
 					for _, spec := range n.Specs {
 						if s, ok := spec.(*ast.TypeSpec); ok {
@@ -84,6 +87,7 @@ func Parse(name, language string, content []byte, chunkLines int) Result {
 					}
 				}
 			}
+			result.Refs = fileRefs(fset, f)
 		}
 	}
 	lines := strings.Split(strings.TrimSuffix(string(content), "\n"), "\n")

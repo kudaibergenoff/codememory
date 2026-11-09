@@ -20,7 +20,9 @@ reported path, line range and SHA-256 for provenance. Go symbols are AST facts;
 other languages currently provide text chunks only.
 
 Tools: `memory_context`, `memory_search`, `memory_status`, `memory_remember`,
-`memory_architecture` (module/import facts and memories for a directory scope).
+`memory_architecture` (module/import facts and memories for a directory scope),
+`memory_graph` (Go callers to depth 3, callees, most referenced symbols; before
+changing a function's signature, check its callers).
 Truncated snippets show only the first lines; read the file for the rest.
 
 Use `memory_remember` only for decisions or facts confirmed in this session

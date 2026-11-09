@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Code graph (schema v8, parser v3): `memory_graph` MCP tool and `codememory graph`
+  return a Go symbol's definition, callers to depth 3 with call sites, and what it
+  uses; without a symbol, the most referenced symbols of a scope. Edges are go/ast
+  references stored in SQLite (`refs`), walked level by level with a visited set;
+  method calls are matched by name and marked `by_name`; `dir` disambiguates. Method symbols are now named
+  `Recv.Method`. Cost on 10k files: first index +26% time, +52% peak RSS, +51% DB.
+
 - Compound identifiers in queries and tasks (`memory_context`, `pkg.Func`,
   `a/b.go`) are kept as FTS5 phrases: chunks containing them verbatim get 2x BM25
   strength, so their split parts or a symbol-column hit no longer outrank them

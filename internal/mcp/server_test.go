@@ -63,7 +63,7 @@ func TestSDKToolsAndMetrics(t *testing.T) {
 	}
 	defer session.Close()
 	listed, err := session.ListTools(ctx, nil)
-	if err != nil || len(listed.Tools) != 5 {
+	if err != nil || len(listed.Tools) != 6 {
 		t.Fatalf("%+v %v", listed, err)
 	}
 	for _, call := range []struct {
@@ -76,7 +76,9 @@ func TestSDKToolsAndMetrics(t *testing.T) {
 		{"memory_remember", map[string]any{"title": "Payments", "body": "Payment lives in pay.go.", "scope": "pay", "source_paths": []string{"pay.go"}}, false},
 		{"memory_remember", map[string]any{"title": "Leak", "body": `password = "hunter2hunter2"`}, true},
 		{"memory_architecture", map[string]any{}, false},
-		{"memory_architecture", map[string]any{"scope": "../etc"}, true}} {
+		{"memory_architecture", map[string]any{"scope": "../etc"}, true},
+		{"memory_graph", map[string]any{"symbol": "Payment"}, false},
+		{"memory_graph", map[string]any{"symbol": "Payment", "depth": 9}, true}} {
 		result, err := session.CallTool(ctx, &sdk.CallToolParams{Name: call.name, Arguments: call.args})
 		if err != nil {
 			t.Fatal(err)
@@ -93,7 +95,7 @@ func TestSDKToolsAndMetrics(t *testing.T) {
 		}
 	}
 	stats, err := analytics.Stats(ctx, s.DB, analytics.Filter{Agent: analytics.AgentClaude})
-	if err != nil || stats.Measured.MCPRequests != 9 || stats.Measured.Errors != 4 {
+	if err != nil || stats.Measured.MCPRequests != 11 || stats.Measured.Errors != 5 {
 		t.Fatalf("%+v %v", stats, err)
 	}
 }

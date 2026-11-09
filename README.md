@@ -52,6 +52,7 @@ configuration and the smoke-test checklist are in [INTEGRATIONS](docs/INTEGRATIO
 | `memory_status` | Index counts and whether the index matches the files (read-only) |
 | `memory_remember` | Save a decision with supporting files; `sourced`, `unverified` or later `stale` |
 | `memory_architecture` | Directories, Go packages and internal imports (go/ast) plus scoped memories |
+| `memory_graph` | Go reference graph: a symbol's definition, callers (depth 1-3, call sites) and what it uses; without a symbol, the most referenced symbols |
 
 Search and context re-index changed files first, so edits are visible without a
 manual `index`. Source text and memories are returned as untrusted data.
@@ -63,6 +64,7 @@ manual `index`. Source text and memories are returned as untrusted data.
 | `init`, `index [--full]` | Create state; index (stat prefilter, `--full` re-reads everything) |
 | `search --query Q`, `context --task T` | CLI equivalents of the MCP tools |
 | `remember`, `architecture [--scope DIR]` | Curate and inspect memories |
+| `graph [--symbol pkg.Name] [--depth 1..3] [--scope DIR]` | Callers and callees of a Go symbol, or the most referenced symbols |
 | `status`, `doctor` | Freshness; read-only diagnostics |
 | `install claude\|codex [--yes]` | Idempotent integration setup; diff first, write only with `--yes` |
 | `stats`, `report --format json\|csv` | Local measurements (`--today`, `--last 7d`, `--agent`) |

@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"fmt"
+	"path"
 	"time"
 
 	"github.com/kudaibergenoff/codememory/internal/parser"
@@ -113,7 +114,8 @@ func insertDocument(ctx context.Context, tx execer, doc Document) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM files WHERE path=?`, doc.Path); err != nil {
 		return fmt.Errorf("replace file: %w", err)
 	}
-	res, err := tx.ExecContext(ctx, `INSERT INTO files(path,sha256,size_bytes,mtime_ns,language) VALUES(?,?,?,?,?)`, doc.Path, doc.Hash, doc.Size, doc.MtimeNS, doc.Language)
+	dir := path.Dir(doc.Path)
+	res, err := tx.ExecContext(ctx, `INSERT INTO files(path,dir,sha256,size_bytes,mtime_ns,language) VALUES(?,?,?,?,?,?)`, doc.Path, dir, doc.Hash, doc.Size, doc.MtimeNS, doc.Language)
 	if err != nil {
 		return fmt.Errorf("insert file: %w", err)
 	}
@@ -124,6 +126,11 @@ func insertDocument(ctx context.Context, tx execer, doc Document) error {
 	for _, sym := range doc.Parsed.Symbols {
 		if _, err = tx.ExecContext(ctx, `INSERT INTO symbols(file_id,name,kind,start_line,end_line) VALUES(?,?,?,?,?)`, id, sym.Name, sym.Kind, sym.Start, sym.End); err != nil {
 			return fmt.Errorf("insert symbol: %w", err)
+		}
+	}
+	for _, r := range doc.Parsed.Refs {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO refs(file_id,dir,from_name,to_pkg,to_name,kind,line,uses) VALUES(?,?,?,?,?,?,?,?)`, id, dir, r.From, r.Pkg, r.Name, r.Kind, r.Line, r.Uses); err != nil {
+			return fmt.Errorf("insert ref: %w", err)
 		}
 	}
 	for _, chunk := range doc.Parsed.Chunks {

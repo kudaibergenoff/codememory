@@ -16,7 +16,8 @@ relative path and lines; hashes describe the indexed snapshot. Only Go has AST
 symbols in this slice; other languages have text chunks.
 
 Available tools are `memory_context`, `memory_search`, `memory_status`,
-`memory_remember` and `memory_architecture`. Truncated snippets show only first lines. Save only decisions
+`memory_remember`, `memory_architecture` and `memory_graph` (Go callers, callees
+and most referenced symbols; check callers before changing a signature). Truncated snippets show only first lines. Save only decisions
 confirmed in this session, citing supporting files in `source_paths`; memories
 without indexed sources are `unverified`, and `stale` ones cite changed files.
 Never store secrets. Estimated response tokens, repeated

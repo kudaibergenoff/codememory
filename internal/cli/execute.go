@@ -11,6 +11,7 @@ import (
 	"github.com/kudaibergenoff/codememory/internal/architecture"
 	"github.com/kudaibergenoff/codememory/internal/config"
 	"github.com/kudaibergenoff/codememory/internal/contextpack"
+	"github.com/kudaibergenoff/codememory/internal/graph"
 	"github.com/kudaibergenoff/codememory/internal/indexer"
 	"github.com/kudaibergenoff/codememory/internal/memory"
 	"github.com/kudaibergenoff/codememory/internal/optimize"
@@ -66,6 +67,8 @@ func dispatch(ctx context.Context, opts options, s *sqlite.Store, root string, c
 		return contextpack.Build(ctx, s, root, cfg, opts.context)
 	case "architecture":
 		return architecture.Describe(ctx, s, root, cfg, opts.arch)
+	case "graph":
+		return graph.Describe(ctx, s, root, cfg, opts.graph)
 	case "remember":
 		return memory.Remember(ctx, s, root, cfg, opts.memory)
 	case "index":

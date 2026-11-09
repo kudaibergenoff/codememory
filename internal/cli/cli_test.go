@@ -157,6 +157,9 @@ func TestCleanKeepsMemoriesUnlessAll(t *testing.T) {
 	if got := run("architecture"); !strings.Contains(got, `"title":"Keep"`) {
 		t.Fatalf("memory lost: %s", got)
 	}
+	if got := run("graph", "--symbol", "pay.Pay", "--depth", "2"); !strings.Contains(got, `"definitions":[{"symbol":`) {
+		t.Fatalf("graph: %s", got)
+	}
 
 	run("clean", "--all", "--yes")
 	if _, err := os.Stat(filepath.Join(root, ".codememory")); !os.IsNotExist(err) {

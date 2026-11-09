@@ -14,6 +14,7 @@ import (
 	"github.com/kudaibergenoff/codememory/internal/config"
 	"github.com/kudaibergenoff/codememory/internal/contextpack"
 	"github.com/kudaibergenoff/codememory/internal/dashboard"
+	"github.com/kudaibergenoff/codememory/internal/graph"
 	"github.com/kudaibergenoff/codememory/internal/mcp"
 	"github.com/kudaibergenoff/codememory/internal/memory"
 	"github.com/kudaibergenoff/codememory/internal/search"
@@ -29,6 +30,7 @@ search:  --query TEXT [--limit 10] [--language go] [--path-prefix internal/]
 context: --task TEXT [--max-tokens 1500]
 remember: --title TEXT --body TEXT [--scope DIR] [--source PATH]...
 architecture: [--scope DIR]
+graph:   [--symbol pkg.Name] [--depth 1..3] [--dir DIR] [--scope DIR]   callers/callees, or most referenced symbols
 context also accepts --architecture=false to omit curated memories
 stats:   [--today | --last 30d] [--agent claude|codex|unknown]
 report:  [--format json|csv] [--today | --last 30d] [--agent ...]
@@ -39,7 +41,7 @@ benchmark: [--tasks FILE]     built-in fixture suite, or your tasks against this
 optimize: read-only suggestions from index, analytics and the latest benchmark
 dashboard: [--addr 127.0.0.1:0] local read-only web view (loopback only)`
 
-var commands = map[string]bool{"init": true, "index": true, "search": true, "context": true, "remember": true, "architecture": true, "status": true, "stats": true, "report": true, "doctor": true, "install": true, "clean": true, "benchmark": true, "optimize": true, "dashboard": true, "serve": true}
+var commands = map[string]bool{"init": true, "index": true, "search": true, "context": true, "remember": true, "architecture": true, "graph": true, "status": true, "stats": true, "report": true, "doctor": true, "install": true, "clean": true, "benchmark": true, "optimize": true, "dashboard": true, "serve": true}
 
 type options struct {
 	command string
@@ -49,6 +51,7 @@ type options struct {
 	context contextpack.Input
 	memory  memory.Input
 	arch    architecture.Input
+	graph   graph.Input
 	withArc bool
 	window  window
 	client  string
@@ -146,6 +149,11 @@ func parse(args []string, errOut io.Writer) (options, error) {
 		flags.StringVar(&opts.tasks, "tasks", "", "JSON task file to run against this project (default: built-in suite)")
 	case "architecture":
 		flags.StringVar(&opts.arch.Scope, "scope", "", "project-relative directory (default: whole project)")
+	case "graph":
+		flags.StringVar(&opts.graph.Symbol, "symbol", "", "Go symbol: Name, pkg.Name, Type.Method or pkg.Type.Method (default: most referenced)")
+		flags.IntVar(&opts.graph.Depth, "depth", 1, "caller levels to follow, 1 to 3")
+		flags.StringVar(&opts.graph.Scope, "scope", "", "project-relative directory for the most referenced list")
+		flags.StringVar(&opts.graph.Dir, "dir", "", "package directory picking one of several same-named symbols")
 	case "remember":
 		flags.StringVar(&opts.memory.Title, "title", "", "short title, unique within the scope")
 		flags.StringVar(&opts.memory.Body, "body", "", "the decision or fact")

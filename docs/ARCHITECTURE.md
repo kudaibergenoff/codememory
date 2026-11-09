@@ -80,6 +80,25 @@ chunk labels); imports under the root `go.mod` module path are reported as
 directories, the rest only counted. `_test.go` files count as files but do not
 define a module's package or dependencies.
 
+`memory_graph` (`internal/graph`, schema v8) reads the `refs` table: one row per
+distinct reference from a top-level function or method (`Recv.Method`) to a
+package-level name, recorded by the parser from go/ast without type checking.
+Targets are a same-package name, an import path plus name, or a method called on
+a value (`to_pkg='.'`, matched by method name only and reported as `by_name`).
+Import paths under the root `go.mod` resolve to project directories at query
+time, so an edited `go.mod` needs no re-parse. Callers are walked level by
+level (depth 3, 50 callers) with a visited set: each function appears once at
+its nearest depth, exact edges before by-name ones, so method names such as
+`Close` cannot multiply paths. Definitions are capped at 20; `dir` picks one of
+several same-named packages. Callees drop variables, constants and shadowing
+locals in SQL before the limit. Not edges: method values passed without a call
+(`s.handle`), and names hidden by a same-named local anywhere in the function
+(scopes are not tracked). Import names are guessed from the path, so a package
+whose clause differs from its directory is not matched. Declarations repeated in build-tagged files
+count once. Cost on the Go standard library (10k files, 481k refs): first index
+28.6 s -> 36.0 s, peak RSS 255 -> 388 MB, database 155 -> 235 MB; symbol queries
+0.2-0.7 s and the most-referenced list 0.7 s including the freshness check.
+
 Query cache (`internal/qcache`, schema v4): `memory_search` and `memory_context`
 responses are stored under SHA-256(tool, normalized input, secrets flag, and for
 context the memory revision), bound to the index generation that produced them

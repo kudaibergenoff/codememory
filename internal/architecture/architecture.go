@@ -66,12 +66,8 @@ func Describe(ctx context.Context, s *sqlite.Store, root string, cfg config.Conf
 	if err != nil {
 		return Response{}, err
 	}
-	gomod, err := s.FirstChunk(ctx, "go.mod")
-	if err != nil {
+	if resp.GoModule, err = GoModule(ctx, s); err != nil {
 		return Response{}, err
-	}
-	if m := goModule.FindStringSubmatch(gomod); m != nil {
-		resp.GoModule = m[1]
 	}
 	resp.Modules, resp.Truncated = modules(facts, resp.GoModule, scope)
 	if resp.Memories, err = memory.Recall(ctx, s, scope); err != nil {
@@ -79,6 +75,19 @@ func Describe(ctx context.Context, s *sqlite.Store, root string, cfg config.Conf
 	}
 	resp.Envelope = search.Fresh(root, refreshed.Generation, refreshed)
 	return resp, nil
+}
+
+// GoModule returns the module path declared by the indexed root go.mod, or ""
+// when there is none.
+func GoModule(ctx context.Context, s *sqlite.Store) (string, error) {
+	gomod, err := s.FirstChunk(ctx, "go.mod")
+	if err != nil {
+		return "", err
+	}
+	if m := goModule.FindStringSubmatch(gomod); m != nil {
+		return m[1], nil
+	}
+	return "", nil
 }
 
 func inScope(dir, scope string) bool {
