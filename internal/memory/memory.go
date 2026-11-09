@@ -21,14 +21,16 @@ const (
 	// StatusStale: derived on read when a cited file changed or disappeared.
 	StatusStale = "stale"
 
-	DefaultScope = "project" // applies to every scope
+	// DefaultScope applies everywhere. It is not a valid directory path, so a
+	// real directory can never collide with it.
+	DefaultScope = "*"
 	maxMemories  = 1000
 )
 
 type Input struct {
 	Title       string   `json:"title" jsonschema:"Short title, unique within the scope; an existing title is updated. Up to 200 bytes."`
 	Body        string   `json:"body" jsonschema:"The decision or fact, up to 4000 bytes. Stored as data, never executed."`
-	Scope       string   `json:"scope,omitempty" jsonschema:"Area it applies to, e.g. internal/search; default project (applies everywhere)."`
+	Scope       string   `json:"scope,omitempty" jsonschema:"Area it applies to, e.g. internal/search; default * (applies everywhere)."`
 	SourcePaths []string `json:"source_paths,omitempty" jsonschema:"Project-relative files supporting it. Without indexed sources the memory is unverified."`
 }
 
@@ -78,7 +80,13 @@ func Remember(ctx context.Context, s *sqlite.Store, root string, cfg config.Conf
 	if err != nil {
 		return RememberResponse{}, err
 	}
-	resp := RememberResponse{Envelope: search.Fresh(root, refreshed.Generation, refreshed), ID: id, Status: status, Updated: updated, Sources: sources}
+	env := search.Fresh(root, refreshed.Generation, refreshed)
+	if !fresh {
+		if env, err = search.Withheld(ctx, s, root); err != nil {
+			return RememberResponse{}, err
+		}
+	}
+	resp := RememberResponse{Envelope: env, ID: id, Status: status, Updated: updated, Sources: sources}
 	resp.Warnings = append(resp.Warnings, unverifiedReasons(in.SourcePaths, missing, fresh)...)
 	return resp, nil
 }

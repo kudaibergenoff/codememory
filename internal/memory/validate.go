@@ -3,6 +3,7 @@ package memory
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -30,10 +31,11 @@ func normalize(in Input) (Input, error) {
 	if out.Scope == "" {
 		out.Scope = DefaultScope
 	}
-	if err := checkText("scope", out.Scope, maxScopeBytes, false); err != nil {
+	if err := checkScope(out.Scope); err != nil {
 		return Input{}, err
 	}
-	if scanner.ContainsSecret([]byte(out.Title + "\n" + out.Body)) {
+	text := []byte(out.Title + "\n" + out.Body + "\n" + out.Scope)
+	if scanner.ContainsSecret(text) || assignedSecret.Match(text) {
 		return Input{}, errors.New("memory text resembles a secret; not saved")
 	}
 	paths, err := checkPaths(in.SourcePaths)
@@ -42,6 +44,24 @@ func normalize(in Input) (Input, error) {
 	}
 	out.SourcePaths = paths
 	return out, nil
+}
+
+// assignedSecret is stricter than the file heuristic: memories are re-served
+// in every matching context, so unquoted assignments are refused too.
+var assignedSecret = regexp.MustCompile(`(?i)\b(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|client[_-]?secret)\b\s*[:=]\s*\S{8,}`)
+
+// checkScope accepts the global sentinel or a clean project-relative directory.
+func checkScope(scope string) error {
+	if err := checkText("scope", scope, maxScopeBytes, false); err != nil {
+		return err
+	}
+	if scope == DefaultScope {
+		return nil
+	}
+	if scope == "." || search.CheckRelative(scope) != nil {
+		return fmt.Errorf("scope %q must be a clean project-relative directory or %s", scope, DefaultScope)
+	}
+	return nil
 }
 
 func normalizeScope(scope string) string {

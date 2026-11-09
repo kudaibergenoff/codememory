@@ -28,24 +28,27 @@ type MemoryRow struct {
 
 // FileHashes returns the indexed SHA-256 of each path that is in the index.
 func (s *Store) FileHashes(ctx context.Context, paths []string) (map[string]string, error) {
-	tx, err := s.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return nil, fmt.Errorf("begin read: %w", err)
-	}
-	defer tx.Rollback()
 	hashes := make(map[string]string, len(paths))
-	for _, p := range paths {
-		var h string
-		err := tx.QueryRowContext(ctx, `SELECT sha256 FROM files WHERE path=?`, p).Scan(&h)
-		if errors.Is(err, sql.ErrNoRows) {
-			continue
-		}
-		if err != nil {
-			return nil, fmt.Errorf("read file hash: %w", err)
+	if len(paths) == 0 {
+		return hashes, nil
+	}
+	list, err := json.Marshal(paths)
+	if err != nil {
+		return nil, fmt.Errorf("encode paths: %w", err)
+	}
+	// One query for any number of paths instead of one per path.
+	err = eachRow(ctx, s.DB, `SELECT path,sha256 FROM files WHERE path IN (SELECT value FROM json_each(?))`, func(r *sql.Rows) error {
+		var p, h string
+		if err := r.Scan(&p, &h); err != nil {
+			return err
 		}
 		hashes[p] = h
+		return nil
+	}, string(list))
+	if err != nil {
+		return nil, fmt.Errorf("read file hashes: %w", err)
 	}
-	return hashes, tx.Commit()
+	return hashes, nil
 }
 
 // UpsertMemory inserts a memory or replaces the one with the same scope and

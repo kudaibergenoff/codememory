@@ -40,6 +40,7 @@ type Response struct {
 	Files           []string        `json:"files"`
 	Snippets        []Snippet       `json:"snippets"`
 	Architecture    []memory.Record `json:"architecture,omitempty"`
+	MemoriesOmitted int             `json:"memories_omitted,omitempty"`
 	Omitted         int             `json:"omitted"`
 	EstimatedTokens int             `json:"estimated_tokens"`
 	TokenBudget     int             `json:"token_budget"`

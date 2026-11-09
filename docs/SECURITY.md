@@ -27,6 +27,7 @@ ACL checks, hostile metadata races and multi-platform validation remain open.
 
 Memories (`memory_remember`) are stored as inert text: never parsed as commands,
 returned with the untrusted-data warning, size-limited (title 200 B, body 4000 B,
-20 sources, 1000 memories) and refused when they match the secret heuristic.
+20 sources, 1000 memories) and refused when they match the file secret heuristic or an unquoted
+`password|token|secret|api_key...: <8+ chars>` assignment (title, body and scope).
 Source paths must be clean project-relative paths; only indexed files can make
 a memory `sourced`, so excluded or secret-like files never count as evidence.

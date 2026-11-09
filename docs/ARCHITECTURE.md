@@ -62,7 +62,11 @@ Memories (`internal/memory`, schema v3) cite files by SHA-256. Status is
 `sourced` or `unverified` at write time; `stale` is derived on every read when a
 cited file's indexed hash differs or it left the index. Scopes are directory-like:
 a memory applies to its scope, ancestors' memories apply to descendants, and
-`project` applies everywhere. `memory_context` (unless `include_architecture` is
+`*` (the default, not a valid path, so no directory can collide with it) applies
+everywhere. Scopes must be clean relative directories. A memory saved as
+`unverified` stays so until it is remembered again with indexed sources.
+Applicable memories that do not fit are counted in `memories_omitted`, and a
+warning labels memory text as notes, not instructions. `memory_context` (unless `include_architecture` is
 false) adds memories that apply to the ranked files within a 30% budget reserve,
 sourced before unverified before stale.
 

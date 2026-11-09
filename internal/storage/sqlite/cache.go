@@ -32,7 +32,8 @@ func (s *Store) CachePut(ctx context.Context, key string, generation int64, payl
 		query string
 		args  []any
 	}{
-		{`DELETE FROM query_cache WHERE generation<>? OR expires_at_ns<=?`, []any{generation, nowNS}},
+		// Only older generations: a late writer must never evict newer entries.
+		{`DELETE FROM query_cache WHERE generation<? OR expires_at_ns<=?`, []any{generation, nowNS}},
 		{`INSERT OR REPLACE INTO query_cache(cache_key,generation,response,created_at_ns,expires_at_ns) VALUES(?,?,?,?,?)`, []any{key, generation, string(payload), nowNS, expiresNS}},
 		{`DELETE FROM query_cache WHERE rowid IN (SELECT rowid FROM query_cache ORDER BY created_at_ns DESC,rowid DESC LIMIT -1 OFFSET ?)`, []any{maxEntries}},
 	}

@@ -156,16 +156,22 @@ func TestRecallFiltersByScopeHierarchy(t *testing.T) {
 func TestInvalidMemoriesAreRejected(t *testing.T) {
 	e := newEnv(t)
 	cases := map[string]memory.Input{
-		"empty title":    {Body: "b", Scope: "s"},
-		"empty body":     {Title: "t", Scope: "s"},
-		"long title":     {Title: strings.Repeat("t", 201), Body: "b"},
-		"long body":      {Title: "t", Body: strings.Repeat("b", 4001)},
-		"secret":         {Title: "key", Body: `api_key = "abcdefgh12345678"`},
-		"absolute path":  {Title: "t", Body: "b", SourcePaths: []string{"/etc/passwd"}},
-		"parent path":    {Title: "t", Body: "b", SourcePaths: []string{"../x.go"}},
-		"unclean path":   {Title: "t", Body: "b", SourcePaths: []string{"pay//pay.go"}},
-		"control chars":  {Title: "t\x07", Body: "b"},
-		"too many paths": {Title: "t", Body: "b", SourcePaths: make([]string, 21)},
+		"empty title":     {Body: "b", Scope: "s"},
+		"empty body":      {Title: "t", Scope: "s"},
+		"long title":      {Title: strings.Repeat("t", 201), Body: "b"},
+		"long body":       {Title: "t", Body: strings.Repeat("b", 4001)},
+		"secret":          {Title: "key", Body: `api_key = "abcdefgh12345678"`},
+		"absolute path":   {Title: "t", Body: "b", SourcePaths: []string{"/etc/passwd"}},
+		"parent path":     {Title: "t", Body: "b", SourcePaths: []string{"../x.go"}},
+		"unclean path":    {Title: "t", Body: "b", SourcePaths: []string{"pay//pay.go"}},
+		"control chars":   {Title: "t\x07", Body: "b"},
+		"too many paths":  {Title: "t", Body: "b", SourcePaths: make([]string, 21)},
+		"unquoted secret": {Title: "db", Body: "password: hunter2hunter2"},
+		"token in scope":  {Title: "t", Body: "b", Scope: "token=abcd1234efgh"},
+		"dot scope":       {Title: "t", Body: "b", Scope: "./internal"},
+		"parent scope":    {Title: "t", Body: "b", Scope: "a/../b"},
+		"absolute scope":  {Title: "t", Body: "b", Scope: "/x"},
+		"root scope":      {Title: "t", Body: "b", Scope: "."},
 	}
 	for name, in := range cases {
 		if _, err := memory.Remember(e.ctx, e.s, e.root, config.Default(), in); err == nil {
@@ -182,5 +188,17 @@ func TestPromptInjectionIsStoredAsInertData(t *testing.T) {
 
 	if got := e.recall("pay"); len(got) != 1 || got[0].Body != body || got[0].Status != memory.StatusUnverified {
 		t.Fatalf("stored record changed: %+v", got)
+	}
+}
+
+func TestDirectoryNamedProjectIsNotGlobal(t *testing.T) {
+	e := newEnv(t)
+	e.remember(memory.Input{Title: "Local", Body: "Only for project/.", Scope: "project"})
+	e.remember(memory.Input{Title: "Global", Body: "Everywhere.", Scope: ""})
+
+	got := e.recall("pay")
+
+	if len(got) != 1 || got[0].Title != "Global" || got[0].Scope != memory.DefaultScope {
+		t.Fatalf("scope matching: %+v", got)
 	}
 }

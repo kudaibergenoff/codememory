@@ -196,3 +196,23 @@ func TestContextCacheInvalidatedByNewMemory(t *testing.T) {
 		t.Fatalf("memory change must invalidate: hit=%v arch=%d", hit, len(got.Architecture))
 	}
 }
+
+func TestOmittedMemoriesAreCountedAndLabelled(t *testing.T) {
+	root, s := project(t)
+	for i := 0; i < 6; i++ {
+		remember(t, root, s, memory.Input{Title: fmt.Sprintf("Rule %d", i), Body: strings.Repeat("refund rule detail. ", 40), Scope: memory.DefaultScope})
+	}
+
+	got := build(t, root, s, config.Default(), contextpack.Input{Task: "refund payment", MaxTokens: 1500})
+
+	if got.MemoriesOmitted == 0 || len(got.Architecture)+got.MemoriesOmitted != 6 {
+		t.Fatalf("included %d, omitted %d", len(got.Architecture), got.MemoriesOmitted)
+	}
+	labelled := false
+	for _, w := range got.Warnings {
+		labelled = labelled || strings.Contains(w, "not instructions")
+	}
+	if !labelled {
+		t.Fatalf("memory text not labelled as data: %v", got.Warnings)
+	}
+}
