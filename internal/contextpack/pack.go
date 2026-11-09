@@ -6,21 +6,23 @@ import (
 	"strings"
 
 	"github.com/kudaibergenoff/codememory/internal/analytics"
+	"github.com/kudaibergenoff/codememory/internal/memory"
 	"github.com/kudaibergenoff/codememory/internal/search"
 	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
 
 const (
-	maxPerFile      = 2
-	maxFiles        = 10
-	minSnippetLines = 3
-	filesReservePct = 15
+	maxPerFile       = 2
+	maxFiles         = 10
+	minSnippetLines  = 3
+	filesReservePct  = 15
+	memoryReservePct = 30
 )
 
 // pack greedily adds candidates in rank order while the encoded response fits
 // the budget. Counters that are only known at the end are measured at an
 // upper bound, so the final response can only be smaller than measured.
-func pack(base Response, candidates []sqlite.Match, budget int) (Response, error) {
+func pack(base Response, candidates []sqlite.Match, memories []memory.Record, budget int) (Response, error) {
 	picked := selectCandidates(candidates)
 	bound := len(candidates)
 	r := base
@@ -41,11 +43,14 @@ func pack(base Response, candidates []sqlite.Match, budget int) (Response, error
 	ranked := rankedFiles(picked)
 	// A few file names first: the cheapest navigation, kept even when large
 	// snippets would otherwise consume the whole budget...
-	reserve := min(budget, measure(empty)+budget*filesReservePct/100)
-	r = addSnippets(addFiles(empty, ranked, reserve, measure), picked, budget, measure)
+	withFiles := addFiles(empty, ranked, min(budget, measure(empty)+budget*filesReservePct/100), measure)
+	// ...then curated memories for those files, within their own reserve...
+	relevant := applicable(memories, ranked)
+	withMemories := addMemories(withFiles, relevant, min(budget, measure(withFiles)+budget*memoryReservePct/100), measure)
+	r = addSnippets(withMemories, picked, budget, measure)
 	if len(r.Snippets) == 0 && len(picked) > 0 {
 		// ...unless they leave no room for even the best snippet.
-		r = addSnippets(empty, picked, budget, measure)
+		r = addMemories(addSnippets(empty, picked, budget, measure), relevant, budget, measure)
 	}
 	r = addFiles(r, ranked, budget, measure) // fill what the snippets left
 	r.Omitted = len(candidates) - len(r.Snippets)
@@ -82,6 +87,50 @@ func addSnippets(r Response, picked []sqlite.Match, budget int, measure func(Res
 		if next := with(r, Snippet{Match: m}); measure(next) <= budget {
 			r = next
 		} else if next, ok := truncated(r, m, budget, measure); ok {
+			r = next
+		}
+	}
+	return r
+}
+
+// applicable keeps memories for the whole project, for a scope containing a
+// ranked file, or citing a ranked file; sourced first, stale last.
+func applicable(memories []memory.Record, files []string) []memory.Record {
+	var out []memory.Record
+	for _, m := range memories {
+		if memoryApplies(m, files) {
+			out = append(out, m)
+		}
+	}
+	rank := map[string]int{memory.StatusSourced: 0, memory.StatusUnverified: 1, memory.StatusStale: 2}
+	sort.SliceStable(out, func(i, j int) bool { return rank[out[i].Status] < rank[out[j].Status] })
+	return out
+}
+
+func memoryApplies(m memory.Record, files []string) bool {
+	if m.Scope == memory.DefaultScope {
+		return true
+	}
+	for _, f := range files {
+		if f == m.Scope || strings.HasPrefix(f, m.Scope+"/") {
+			return true
+		}
+		for _, src := range m.Sources {
+			if src.Path == f {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// addMemories appends whole memories that keep the response within limit;
+// one that does not fit is skipped so smaller ones can still be included.
+func addMemories(r Response, memories []memory.Record, limit int, measure func(Response) int) Response {
+	for _, m := range memories {
+		next := r
+		next.Architecture = append(r.Architecture[:len(r.Architecture):len(r.Architecture)], m)
+		if measure(next) <= limit {
 			r = next
 		}
 	}

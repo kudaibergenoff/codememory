@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `memory_architecture` MCP tool and `codememory architecture`: modules, Go
+  packages and internal imports from go/ast (parser v2), plus scoped memories.
+- `memory_context` includes applicable curated memories by default.
+
 - `memory_remember` MCP tool and `codememory remember`: curated memories with
   file SHA-256 provenance (schema v3); `sourced`/`unverified`, `stale` derived on
   read; same scope+title updates in place; secret-like text refused.

@@ -9,6 +9,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/kudaibergenoff/codememory/internal/architecture"
 	"github.com/kudaibergenoff/codememory/internal/config"
 	"github.com/kudaibergenoff/codememory/internal/contextpack"
 	"github.com/kudaibergenoff/codememory/internal/mcp"
@@ -23,9 +24,11 @@ const usage = `codememory <init|index|search|context|status|stats|serve|version>
 index:   [--full]  re-read every file, bypassing the size/mtime prefilter
 search:  --query TEXT [--limit 10] [--language go] [--path-prefix internal/]
 context: --task TEXT [--max-tokens 1500]
-remember: --title TEXT --body TEXT [--scope DIR] [--source PATH]...`
+remember: --title TEXT --body TEXT [--scope DIR] [--source PATH]...
+architecture: [--scope DIR]
+context also accepts --architecture=false to omit curated memories`
 
-var commands = map[string]bool{"init": true, "index": true, "search": true, "context": true, "remember": true, "status": true, "stats": true, "serve": true}
+var commands = map[string]bool{"init": true, "index": true, "search": true, "context": true, "remember": true, "architecture": true, "status": true, "stats": true, "serve": true}
 
 type options struct {
 	command string
@@ -34,6 +37,8 @@ type options struct {
 	search  search.Input
 	context contextpack.Input
 	memory  memory.Input
+	arch    architecture.Input
+	withArc bool
 }
 
 func Run(ctx context.Context, args []string, out, errOut io.Writer) error {
@@ -95,6 +100,9 @@ func parse(args []string, errOut io.Writer) (options, error) {
 	case "context":
 		flags.StringVar(&opts.context.Task, "task", "", "task description in natural language")
 		flags.IntVar(&opts.context.MaxTokens, "max-tokens", 0, "response budget in estimated tokens (500 to 8000, default 1500)")
+		flags.BoolVar(&opts.withArc, "architecture", true, "include curated memories for the ranked files")
+	case "architecture":
+		flags.StringVar(&opts.arch.Scope, "scope", "", "project-relative directory (default: whole project)")
 	case "remember":
 		flags.StringVar(&opts.memory.Title, "title", "", "short title, unique within the scope")
 		flags.StringVar(&opts.memory.Body, "body", "", "the decision or fact")
@@ -107,6 +115,7 @@ func parse(args []string, errOut io.Writer) (options, error) {
 	if flags.NArg() != 0 {
 		return opts, errors.New("unexpected arguments")
 	}
+	opts.context.IncludeArchitecture = &opts.withArc
 	return opts, nil
 }
 

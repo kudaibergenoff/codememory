@@ -3,19 +3,18 @@ package memory
 import (
 	"errors"
 	"fmt"
-	"path"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/kudaibergenoff/codememory/internal/scanner"
+	"github.com/kudaibergenoff/codememory/internal/search"
 )
 
 const (
 	maxTitleBytes = 200
 	maxBodyBytes  = 4000
 	maxScopeBytes = 128
-	maxPathBytes  = 512
 	maxSources    = 20
 )
 
@@ -72,9 +71,8 @@ func checkPaths(paths []string) ([]string, error) {
 	seen := make(map[string]bool, len(paths))
 	out := make([]string, 0, len(paths))
 	for _, p := range paths {
-		if p == "" || len(p) > maxPathBytes || !utf8.ValidString(p) || strings.Contains(p, "\\") ||
-			path.IsAbs(p) || path.Clean(p) != p || p == ".." || strings.HasPrefix(p, "../") {
-			return nil, fmt.Errorf("source path %q must be a clean project-relative path", p)
+		if err := search.CheckRelative(p); err != nil {
+			return nil, err
 		}
 		if !seen[p] {
 			seen[p] = true

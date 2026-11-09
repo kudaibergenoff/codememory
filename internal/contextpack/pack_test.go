@@ -36,7 +36,7 @@ func baseFor(budget int) Response {
 
 func mustPack(t *testing.T, base Response, candidates []sqlite.Match, budget int) Response {
 	t.Helper()
-	r, err := pack(base, candidates, budget)
+	r, err := pack(base, candidates, nil, budget)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestPackRejectsBudgetSmallerThanEnvelope(t *testing.T) {
 	base := baseFor(minTokens)
 	base.Project = strings.Repeat("\x01", 400) // 6 bytes each once JSON-escaped
 
-	if _, err := pack(base, fakeMatches(1, 1, 5), minTokens); err == nil {
+	if _, err := pack(base, fakeMatches(1, 1, 5), nil, minTokens); err == nil {
 		t.Fatal("over-budget envelope accepted")
 	}
 }

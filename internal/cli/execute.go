@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/kudaibergenoff/codememory/internal/analytics"
+	"github.com/kudaibergenoff/codememory/internal/architecture"
 	"github.com/kudaibergenoff/codememory/internal/config"
 	"github.com/kudaibergenoff/codememory/internal/contextpack"
 	"github.com/kudaibergenoff/codememory/internal/indexer"
@@ -53,6 +54,8 @@ func dispatch(ctx context.Context, opts options, s *sqlite.Store, root string, c
 		return search.Query(ctx, s, root, cfg, opts.search)
 	case "context":
 		return contextpack.Build(ctx, s, root, cfg, opts.context)
+	case "architecture":
+		return architecture.Describe(ctx, s, root, cfg, opts.arch)
 	case "remember":
 		return memory.Remember(ctx, s, root, cfg, opts.memory)
 	case "index":

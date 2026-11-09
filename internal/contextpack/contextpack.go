@@ -7,6 +7,7 @@ import (
 
 	"github.com/kudaibergenoff/codememory/internal/analytics"
 	"github.com/kudaibergenoff/codememory/internal/config"
+	"github.com/kudaibergenoff/codememory/internal/memory"
 	"github.com/kudaibergenoff/codememory/internal/search"
 	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
@@ -21,7 +22,7 @@ const (
 type Input struct {
 	Task                string `json:"task" jsonschema:"The task in natural language; identifiers help ranking. Up to 4000 bytes."`
 	MaxTokens           int    `json:"max_tokens,omitempty" jsonschema:"Response budget in estimated tokens, 500 to 8000, default 1500. Counts the whole JSON response."`
-	IncludeArchitecture bool   `json:"include_architecture,omitempty" jsonschema:"Reserved: curated architecture memories are not stored yet, so nothing is added."`
+	IncludeArchitecture *bool  `json:"include_architecture,omitempty" jsonschema:"Include curated memories that apply to the ranked files or the whole project, with status. Default true."`
 }
 
 // Snippet is a ranked match; Truncated means only the first lines fit the budget.
@@ -32,14 +33,15 @@ type Snippet struct {
 
 type Response struct {
 	search.Envelope
-	Summary         string    `json:"summary"`
-	Terms           []string  `json:"terms"`
-	Files           []string  `json:"files"`
-	Snippets        []Snippet `json:"snippets"`
-	Omitted         int       `json:"omitted"`
-	EstimatedTokens int       `json:"estimated_tokens"`
-	TokenBudget     int       `json:"token_budget"`
-	Estimator       string    `json:"estimator"`
+	Summary         string          `json:"summary"`
+	Terms           []string        `json:"terms"`
+	Files           []string        `json:"files"`
+	Snippets        []Snippet       `json:"snippets"`
+	Architecture    []memory.Record `json:"architecture,omitempty"`
+	Omitted         int             `json:"omitted"`
+	EstimatedTokens int             `json:"estimated_tokens"`
+	TokenBudget     int             `json:"token_budget"`
+	Estimator       string          `json:"estimator"`
 }
 
 // Build refreshes the index, retrieves candidates for the task and packs as
@@ -62,14 +64,20 @@ func Build(ctx context.Context, s *sqlite.Store, root string, cfg config.Config,
 		if base.Envelope, err = search.Withheld(ctx, s, root); err != nil {
 			return Response{}, err
 		}
-		return pack(base, nil, budget)
+		return pack(base, nil, nil, budget)
 	}
 	result, err := s.Search(ctx, search.OrExpression(terms, true), "", "", candidateLimit)
 	if err != nil {
 		return Response{}, err
 	}
 	base.Envelope = search.Fresh(root, result.Generation, refreshed)
-	return pack(base, result.Matches, budget)
+	var memories []memory.Record
+	if in.IncludeArchitecture == nil || *in.IncludeArchitecture {
+		if memories, err = memory.Recall(ctx, s, ""); err != nil {
+			return Response{}, err
+		}
+	}
+	return pack(base, result.Matches, memories, budget)
 }
 
 func budgetOf(requested int) (int, error) {

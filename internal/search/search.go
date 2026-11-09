@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"strings"
 	"unicode/utf8"
 
@@ -35,6 +36,15 @@ type Response struct {
 
 func newResponse(e Envelope) Response {
 	return Response{Envelope: e, Matches: []sqlite.Match{}}
+}
+
+// CheckRelative rejects anything but a clean, project-relative slash path.
+func CheckRelative(p string) error {
+	if p == "" || len(p) > maxPrefixBytes || !utf8.ValidString(p) || strings.Contains(p, "\\") ||
+		path.IsAbs(p) || path.Clean(p) != p || p == ".." || strings.HasPrefix(p, "../") {
+		return fmt.Errorf("path %q must be a clean project-relative path", p)
+	}
+	return nil
 }
 
 // normalize validates filters and returns the input with defaults applied.
