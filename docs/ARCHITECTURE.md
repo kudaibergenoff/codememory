@@ -46,7 +46,8 @@ BEGIN, so searches never wait for an indexer's writer lock.
 Context assembly (`internal/contextpack`): task words minus English/Russian
 stopwords become FTS5 prefix terms (`"refund"*` also matches the identifier token
 `refundpayment`; the tokenizer does not split camelCase). Up to 60 BM25-ranked
-chunks are deduplicated (no overlapping ranges, at most 2 per file) and packed
+chunks are filtered to those with at least 30% of the best match's BM25
+strength (weak matches no longer pad the budget), then deduplicated (no overlapping ranges, at most 2 per file) and packed
 greedily: a few ranked file names (15% reserve), then snippets in rank order,
 truncated to a line prefix when they do not fit whole, then more file names.
 Every step measures the *encoded* response with `utf8-bytes-div-3-ceil-v1`, and

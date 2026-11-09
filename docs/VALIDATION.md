@@ -94,3 +94,10 @@ Windows fixes (LF line endings via .gitattributes; `file:///C:/...` SQLite URI).
   repository's own test data.
 
 No agent-level token savings are claimed; client usage data is unavailable.
+
+Relevance cutoff (candidates below 30% of the best BM25 strength are dropped),
+chosen by sweeping 0-0.6 on both suites: on the fixture the median positive
+response fell from 575 to 442 estimated tokens with recall 1.0 (0.6 lost an
+expected file); on this repository results were unchanged (recall 1.0, budget
+filled by relevant snippets). Fixture savings vs. the lexical baseline remain
+negative: the remaining cost is per-response provenance overhead.
