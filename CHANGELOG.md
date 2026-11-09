@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `memory_remember` MCP tool and `codememory remember`: curated memories with
+  file SHA-256 provenance (schema v3); `sourced`/`unverified`, `stale` derived on
+  read; same scope+title updates in place; secret-like text refused.
+
 - `memory_context` MCP tool and `codememory context`: task-driven, deduplicated,
   ranked snippets packed so the encoded JSON response stays within `max_tokens`.
 - JSON responses are no longer HTML-escaped (`<`, `>`, `&` cost 6 bytes each).

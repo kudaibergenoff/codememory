@@ -111,6 +111,10 @@ func Denied(name string) bool {
 	return false
 }
 
+// ContainsSecret applies the same heuristic used to exclude files, e.g. to
+// refuse storing secret-like text in memories.
+func ContainsSecret(b []byte) bool { return secret.Match(b) }
+
 var secret = regexp.MustCompile(`(?im)(-----BEGIN [A-Z ]*PRIVATE KEY-----|\bAKIA[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{30,}|\bsk-[A-Za-z0-9_-]{24,}|(?:password|passwd|api[_-]?key|access[_-]?token|client[_-]?secret)\s*[:=]\s*["'][^"'\r\n]{8,}["'])`)
 
 func Language(name string) string {

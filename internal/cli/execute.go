@@ -11,6 +11,7 @@ import (
 	"github.com/kudaibergenoff/codememory/internal/config"
 	"github.com/kudaibergenoff/codememory/internal/contextpack"
 	"github.com/kudaibergenoff/codememory/internal/indexer"
+	"github.com/kudaibergenoff/codememory/internal/memory"
 	"github.com/kudaibergenoff/codememory/internal/search"
 	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
@@ -52,6 +53,8 @@ func dispatch(ctx context.Context, opts options, s *sqlite.Store, root string, c
 		return search.Query(ctx, s, root, cfg, opts.search)
 	case "context":
 		return contextpack.Build(ctx, s, root, cfg, opts.context)
+	case "remember":
+		return memory.Remember(ctx, s, root, cfg, opts.memory)
 	case "index":
 		run := indexer.Index
 		if opts.full {

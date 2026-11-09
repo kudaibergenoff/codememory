@@ -38,7 +38,8 @@ Remaining MVP commands are not registered as fake implementations.
 - [x] Context budget including serialized JSON; dedup; `memory_context` and
   `codememory context` (fixtures: payment files in top 5).
 - [ ] Architecture context (`include_architecture`) backed by curated memories.
-- [ ] Architecture/dependency facts and persistent decisions with provenance.
+- [x] Persistent decisions with provenance: `memory_remember`, sourced/unverified/stale.
+- [ ] Architecture/dependency facts (`memory_architecture`).
 - [ ] Generation-bound query cache, TTL, invalidation and reuse metrics.
 - [ ] Remaining three MCP tools and complete client/session analytics attribution.
 - [ ] Reproducible baseline harness with quality criteria, negative cases and

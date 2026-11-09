@@ -25,14 +25,17 @@ Add `.codememory/` to your project's `.gitignore`. Configuration is in
 `.codememory/config.json`; private SQLite state stays inside that directory.
 Global agent settings are never modified automatically.
 
-Implemented commands: `init`, `index [--full]`, `search`, `context`, `status`, `stats`, `serve`, `version`.
+Implemented commands: `init`, `index [--full]`, `search`, `context`, `remember`, `status`, `stats`, `serve`, `version`.
 `context --task "add a refund endpoint" --max-tokens 1500` returns ranked snippets and
 file names whose whole JSON response fits the estimated token budget.
 Search additionally accepts `--language go` and `--path-prefix internal/`.
 Place flags before any positional arguments; search uses `--query`, not a bare argument.
 All ordinary responses are JSON. `serve` reserves stdout for MCP and stderr for logs.
 
-The MCP tools are `memory_context`, `memory_search` and `memory_status`. Follow the
+The MCP tools are `memory_context`, `memory_search`, `memory_status` and `memory_remember`.
+Memories cite files by SHA-256: `sourced` (cited files indexed when saved, which
+proves provenance, not truth), `unverified` (no indexed sources) or `stale` (a cited
+file changed since). Secret-like text is refused. Follow the
 [Claude/Codex setup guide](docs/INTEGRATIONS.md) and use the example files under
 `integrations/`. No global agent configuration is changed automatically.
 
@@ -57,7 +60,7 @@ tokens. Actual usage and verified savings are `null` (N/A). Cache reuse is not
 token savings; token savings are not subscription cost savings.
 
 `benchmark`, `report`, `dashboard`, `optimize`, `doctor`, `clean`,
-`install` and persistent-memory tools remain pending, not placeholder commands.
+`install` and `memory_architecture` remain pending, not placeholder commands.
 The first slice is tested locally on macOS arm64; the native five-platform CI
 matrix is provided but has not run. Authenticated Claude/Codex smoke tests and a
 dependency/license review are required before release.

@@ -11,6 +11,7 @@ import (
 var migrationFiles = []string{
 	"001_initial.sql",
 	"002_stat_prefilter.sql",
+	"003_memories.sql",
 }
 
 var schemaVersion = len(migrationFiles)

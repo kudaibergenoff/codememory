@@ -68,3 +68,22 @@ func TestContextCommand(t *testing.T) {
 		t.Fatal("missing --task accepted")
 	}
 }
+
+func TestRememberCommand(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "pay.go"), []byte("package pay\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	ctx := context.Background()
+	if err := Run(ctx, []string{"init", "--project", root}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+
+	err := Run(ctx, []string{"remember", "--title", "Pay", "--body", "Payments live in pay.go", "--source", "pay.go", "--source", "pay.go", "--project", root}, &out, &errOut)
+
+	if err != nil || !strings.Contains(out.String(), `"status":"sourced"`) {
+		t.Fatalf("%v %s %s", err, out.String(), errOut.String())
+	}
+}
