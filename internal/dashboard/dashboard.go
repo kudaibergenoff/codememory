@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/kudaibergenoff/codememory/internal/analytics"
@@ -25,6 +26,9 @@ const (
 	note              = "All values are local measurements from this machine; there is no demo data. Estimated tokens are a size proxy of responses; verified savings need client usage data and are N/A."
 	csp               = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 	readHeaderTimeout = 5 * time.Second
+	readTimeout       = 15 * time.Second
+	writeTimeout      = 30 * time.Second
+	idleTimeout       = 60 * time.Second
 	window            = 30 * 24 * time.Hour
 )
 
@@ -51,6 +55,7 @@ func CheckAddr(addr string) error {
 }
 
 func isLoopback(host string) bool {
+	host = strings.TrimSuffix(strings.Trim(host, "[]"), ".")
 	if host == "localhost" {
 		return true
 	}
@@ -151,10 +156,16 @@ func Serve(ctx context.Context, s *sqlite.Store, project, addr string, ready fun
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
 	}
-	srv := &http.Server{Handler: Handler(s, project), ReadHeaderTimeout: readHeaderTimeout}
+	srv := &http.Server{Handler: Handler(s, project), ReadHeaderTimeout: readHeaderTimeout, ReadTimeout: readTimeout, WriteTimeout: writeTimeout, IdleTimeout: idleTimeout}
 	ready("http://" + ln.Addr().String() + "/")
+	done := make(chan struct{})
+	defer close(done)
 	go func() {
-		<-ctx.Done()
+		select {
+		case <-ctx.Done():
+		case <-done: // Serve returned on its own
+			return
+		}
 		shutdown, cancel := context.WithTimeout(context.Background(), readHeaderTimeout)
 		defer cancel()
 		_ = srv.Shutdown(shutdown)

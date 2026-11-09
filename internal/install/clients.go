@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
+
+	"github.com/BurntSushi/toml"
 
 	"github.com/kudaibergenoff/codememory/integrations"
 )
@@ -22,8 +23,6 @@ const (
 	agentBegin = "<!-- BEGIN codememory (managed by `codememory install codex`) -->"
 	agentEnd   = "<!-- END codememory -->"
 )
-
-var handWrittenServer = regexp.MustCompile(`(?m)^\s*\[\s*mcp_servers\s*\.\s*"?codememory"?\s*\]`)
 
 // Claude plans the project .mcp.json entry and project skill.
 func Claude(o Options) (Plan, error) {
@@ -40,13 +39,17 @@ func Codex(o Options) (Plan, error) {
 	if err != nil {
 		return Plan{}, err
 	}
+	var warnings []string
+	warn := func(w string) { warnings = append(warnings, w) }
 	targets := []target{
-		{dir: home, name: "config.toml", mode: 0600, render: func(old []byte, _ bool) ([]byte, error) { return codexConfig(old, o) }},
+		{dir: home, name: "config.toml", mode: 0600, render: func(old []byte, _ bool) ([]byte, error) { return codexConfig(old, o, warn) }},
 		{dir: o.Root, name: "AGENTS.md", mode: 0644, render: func(old []byte, _ bool) ([]byte, error) {
 			return replaceBlock(old, agentBegin, agentEnd, strings.TrimSpace(integrations.CodexAgents))
 		}},
 	}
-	return run("codex", codexNote, o.Apply, targets)
+	plan, err := run("codex", codexNote, o.Apply, targets)
+	plan.Warnings = warnings
+	return plan, err
 }
 
 // CodexHome resolves the Codex config directory: explicit, $CODEX_HOME or ~/.codex.
@@ -108,17 +111,61 @@ func sameJSON(a, b json.RawMessage) bool {
 	return bytes.Equal(xa, ya)
 }
 
-func codexConfig(old []byte, o Options) ([]byte, error) {
-	outside := removeBlock(string(old), tomlBegin, tomlEnd)
-	if handWrittenServer.MatchString(outside) {
-		return nil, errors.New("a hand-written [mcp_servers.codememory] exists; remove it or keep it and skip install")
+// codexConfig parses the existing config as TOML, refuses any hand-written
+// mcp_servers.codememory in any syntax, and verifies the rendered result.
+func codexConfig(old []byte, o Options, warn func(string)) ([]byte, error) {
+	full, err := decodeTOML(string(old))
+	if err != nil {
+		return nil, fmt.Errorf("existing config is not valid TOML; fix it before installing: %w", err)
+	}
+	outside, err := decodeTOML(removeBlock(string(old), tomlBegin, tomlEnd))
+	if err != nil {
+		return nil, fmt.Errorf("existing config is not valid TOML; fix it before installing: %w", err)
+	}
+	if server(outside) != nil {
+		return nil, errors.New("a hand-written mcp_servers.codememory exists; remove it or keep it and skip install")
+	}
+	if prev := serverProject(server(full)); prev != "" && prev != o.Root {
+		warn(fmt.Sprintf("Codex's codememory server currently serves %s; applying repoints it to this project.", prev))
 	}
 	quoted := make([]string, 0, 3)
 	for _, a := range serverArgs(o) {
 		quoted = append(quoted, tomlString(a))
 	}
 	block := fmt.Sprintf("[mcp_servers.%s]\ncommand = %s\nargs = [%s]", serverName, tomlString(o.Executable), strings.Join(quoted, ", "))
-	return replaceBlock(old, tomlBegin, tomlEnd, block)
+	out, err := replaceBlock(old, tomlBegin, tomlEnd, block)
+	if err != nil {
+		return nil, err
+	}
+	if rendered, err := decodeTOML(string(out)); err != nil || server(rendered) == nil {
+		return nil, fmt.Errorf("rendered config would be invalid TOML; nothing written: %v", err)
+	}
+	return out, nil
+}
+
+func decodeTOML(text string) (map[string]any, error) {
+	doc := map[string]any{}
+	_, err := toml.Decode(text, &doc)
+	return doc, err
+}
+
+// server returns mcp_servers.codememory however it was written, or nil.
+func server(doc map[string]any) map[string]any {
+	servers, _ := doc["mcp_servers"].(map[string]any)
+	entry, _ := servers[serverName].(map[string]any)
+	return entry
+}
+
+// serverProject returns the --project argument of a server entry, or "".
+func serverProject(entry map[string]any) string {
+	args, _ := entry["args"].([]any)
+	for i := 0; i+1 < len(args); i++ {
+		if flag, _ := args[i].(string); flag == "--project" {
+			p, _ := args[i+1].(string)
+			return p
+		}
+	}
+	return ""
 }
 
 // tomlString quotes s as a TOML basic string.

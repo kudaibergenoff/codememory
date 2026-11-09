@@ -69,15 +69,9 @@ type sizer struct {
 	bound, budget, relevant int
 	skeleton                map[int]int
 	files                   map[string]int
-	snippets                map[snippetKey]int
+	snippets                map[Snippet]int
 	sources                 map[sqlite.Source]int
 	memories                map[int64]int
-}
-
-type snippetKey struct {
-	path, symbol     string
-	start, end, size int
-	truncated        bool
 }
 
 // archKey is what a non-empty omitempty "architecture" array adds besides its elements.
@@ -85,7 +79,7 @@ var archKey = len(`,"architecture":[]`)
 
 func newSizer(bound, budget, relevant int) *sizer {
 	return &sizer{bound: bound, budget: budget, relevant: relevant, skeleton: map[int]int{},
-		files: map[string]int{}, snippets: map[snippetKey]int{}, sources: map[sqlite.Source]int{}, memories: map[int64]int{}}
+		files: map[string]int{}, snippets: map[Snippet]int{}, sources: map[sqlite.Source]int{}, memories: map[int64]int{}}
 }
 
 // withBounds sets the counters known only at the end to upper bounds.
@@ -104,9 +98,7 @@ func (z *sizer) measure(x Response) int {
 		z.skeleton[len(x.Terms)] = n
 	}
 	n += arrayBytes(x.Files, z.files, func(f string) string { return f })
-	n += arrayBytes(x.Snippets, z.snippets, func(s Snippet) snippetKey {
-		return snippetKey{s.Path, s.Symbol, s.Start, s.End, len(s.Snippet), s.Truncated}
-	})
+	n += arrayBytes(x.Snippets, z.snippets, func(s Snippet) Snippet { return s }) // keyed by value: every encoded field
 	n += arrayBytes(x.Sources, z.sources, func(s sqlite.Source) sqlite.Source { return s })
 	if len(x.Architecture) > 0 {
 		n += archKey + arrayBytes(x.Architecture, z.memories, func(m memory.Record) int64 { return m.ID })

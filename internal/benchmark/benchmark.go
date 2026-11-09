@@ -5,8 +5,11 @@ package benchmark
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -213,24 +216,64 @@ func summarize(results []Result) Summary {
 	return s
 }
 
-// gitHead returns the checked-out commit from .git without running git, or "".
+var commitSHA = regexp.MustCompile(`^[0-9a-f]{40}([0-9a-f]{24})?$`)
+
+const (
+	maxRefBytes    = 256
+	maxPackedBytes = 1 << 20
+)
+
+// gitHead returns the checked-out commit without running git, or "". It reads
+// only regular files inside .git through os.Root, accepts refs under refs/ and
+// returns nothing that is not a commit hash, so a crafted HEAD cannot leak or
+// block on other files.
 func gitHead(root string) string {
-	head, err := os.ReadFile(filepath.Join(root, ".git", "HEAD"))
+	r, err := os.OpenRoot(filepath.Join(root, ".git"))
 	if err != nil {
 		return ""
 	}
-	ref, isRef := strings.CutPrefix(strings.TrimSpace(string(head)), "ref: ")
+	defer r.Close()
+	head := readSmall(r, "HEAD", maxRefBytes)
+	ref, isRef := strings.CutPrefix(head, "ref: ")
 	if !isRef {
-		return ref
+		return validSHA(head)
 	}
-	if b, err := os.ReadFile(filepath.Join(root, ".git", filepath.FromSlash(ref))); err == nil {
-		return strings.TrimSpace(string(b))
+	if !strings.HasPrefix(ref, "refs/") || strings.Contains(ref, "..") || path.Clean(ref) != ref {
+		return ""
 	}
-	packed, _ := os.ReadFile(filepath.Join(root, ".git", "packed-refs"))
-	for _, line := range strings.Split(string(packed), "\n") {
+	if sha := validSHA(readSmall(r, ref, maxRefBytes)); sha != "" {
+		return sha
+	}
+	for _, line := range strings.Split(readSmall(r, "packed-refs", maxPackedBytes), "\n") {
 		if sha, name, ok := strings.Cut(line, " "); ok && name == ref {
-			return sha
+			return validSHA(sha)
 		}
 	}
 	return ""
+}
+
+func validSHA(s string) string {
+	if commitSHA.MatchString(s) {
+		return s
+	}
+	return ""
+}
+
+// readSmall returns a regular file's trimmed content, or "" if it is missing,
+// not regular or larger than limit.
+func readSmall(r *os.Root, name string, limit int64) string {
+	info, err := r.Lstat(name)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > limit {
+		return ""
+	}
+	f, err := r.Open(name)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	b, err := io.ReadAll(io.LimitReader(f, limit))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
 }

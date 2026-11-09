@@ -90,3 +90,9 @@ func TestCheckAddrAllowsLoopbackOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestBracketedIPv6HostWithoutPortIsLoopback(t *testing.T) {
+	if rec := get(server(t), http.MethodGet, "/", "[::1]"); rec.Code != http.StatusOK {
+		t.Fatalf("[::1] rejected: %d", rec.Code)
+	}
+}

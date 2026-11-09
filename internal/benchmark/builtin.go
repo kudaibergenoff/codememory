@@ -86,7 +86,9 @@ func copyFixture(dir string) error {
 			return err
 		}
 		rel := strings.TrimPrefix(strings.TrimPrefix(path, fixtureRoot), "/")
-		rel = strings.TrimSuffix(rel, ".txt") // go.mod is stored as go.mod.txt
+		if rel == "go.mod.txt" {
+			rel = "go.mod" // stored renamed: a real go.mod would make the fixture a separate module
+		}
 		target := filepath.Join(dir, filepath.FromSlash(rel))
 		if d.IsDir() {
 			return os.MkdirAll(target, 0700)

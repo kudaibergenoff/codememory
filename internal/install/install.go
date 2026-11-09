@@ -3,6 +3,8 @@
 package install
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -31,11 +33,12 @@ type Change struct {
 }
 
 type Plan struct {
-	Client  string   `json:"client"`
-	Applied bool     `json:"applied"`
-	Changes []Change `json:"changes"`
-	Next    string   `json:"next,omitempty"`
-	Note    string   `json:"note"`
+	Client   string   `json:"client"`
+	Applied  bool     `json:"applied"`
+	Changes  []Change `json:"changes"`
+	Next     string   `json:"next,omitempty"`
+	Warnings []string `json:"warnings,omitempty"`
+	Note     string   `json:"note"`
 }
 
 // target is one file, addressed inside dir through os.Root so that symlinks
@@ -123,7 +126,18 @@ func readTarget(t target) ([]byte, bool, error) {
 	return b, true, nil
 }
 
-// writeTarget replaces the file atomically via a temporary file and rename.
+// tempName returns an unpredictable sibling name for an atomic write.
+func tempName(name string) (string, error) {
+	var b [8]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", fmt.Errorf("temporary name: %w", err)
+	}
+	return fmt.Sprintf("%s.codememory-%s.tmp", name, hex.EncodeToString(b[:])), nil
+}
+
+// writeTarget replaces one file atomically via a temporary file and rename.
+// Targets are written one by one: a failure leaves earlier targets applied,
+// which a re-run completes (installs are idempotent).
 func writeTarget(t target, content []byte) error {
 	if err := os.MkdirAll(t.dir, 0700); err != nil {
 		return fmt.Errorf("create %s: %w", t.dir, err)
@@ -138,12 +152,26 @@ func writeTarget(t target, content []byte) error {
 			return fmt.Errorf("create %s: %w", dir, err)
 		}
 	}
-	tmp := t.name + ".codememory-tmp"
-	f, err := root.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, t.mode)
+	mode := t.mode
+	if info, err := root.Lstat(t.name); err == nil && info.Mode().IsRegular() {
+		mode = info.Mode().Perm() // never loosen or tighten the user's file
+	}
+	tmp, err := tempName(t.name)
+	if err != nil {
+		return err
+	}
+	// O_EXCL: never write through an existing file or symlink at the temp name.
+	f, err := root.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
 	if err != nil {
 		return fmt.Errorf("write %s: %w", t.display(), err)
 	}
 	_, err = f.Write(content)
+	if err == nil {
+		err = f.Chmod(mode) // exact mode regardless of umask
+	}
+	if err == nil {
+		err = f.Sync()
+	}
 	if closeErr := f.Close(); err == nil {
 		err = closeErr
 	}

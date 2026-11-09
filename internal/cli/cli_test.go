@@ -191,3 +191,11 @@ func TestDoctorReportsWithoutFailing(t *testing.T) {
 		t.Fatalf("initialized: %s", got)
 	}
 }
+
+func TestParseLastRejectsOverflow(t *testing.T) {
+	for _, bad := range []string{"9223372036854775807d", "106752d", "31d", "0d", "-1d"} {
+		if _, err := parseLast(bad); err == nil {
+			t.Errorf("%s accepted", bad)
+		}
+	}
+}
