@@ -109,7 +109,8 @@ func Query(ctx context.Context, s *sqlite.Store, root string, cfg config.Config,
 		cached.MarkRequest(key)
 		return cached, nil
 	}
-	result, err := s.Search(ctx, expr, in.Language, in.PathPrefix, in.Limit)
+	result, err := s.Search(ctx, sqlite.Query{Expression: expr, Exact: PhraseExpression(Phrases(in.Query)),
+		Language: in.Language, PathPrefix: in.PathPrefix, Limit: in.Limit})
 	if err != nil {
 		return Response{}, err
 	}

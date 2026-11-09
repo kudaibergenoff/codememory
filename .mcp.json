@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "codememory": {
+      "args": [
+        "serve",
+        "--project",
+        "/Users/zhanuzakkudaibergenov/Projects/codememory"
+      ],
+      "command": "/Users/zhanuzakkudaibergenov/Projects/codememory/bin/codememory",
+      "type": "stdio"
+    }
+  }
+}

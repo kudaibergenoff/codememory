@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Compound identifiers in queries and tasks (`memory_context`, `pkg.Func`,
+  `a/b.go`) are kept as FTS5 phrases: chunks containing them verbatim get 2x BM25
+  strength, so their split parts or a symbol-column hit no longer outrank them
+  (`internal/mcp/server.go` for "memory_architecture handler": rank 16 -> 1).
+  Query-cache keys carry a results version, so upgrades never serve old rankings.
+
 - `memory_status`: database size, cache stats, files per language, supported
   languages. Events: config version, invalidations, keyed repeat fingerprints and
   measured metrics overhead (schema v7). Test files are demoted in memory_context.

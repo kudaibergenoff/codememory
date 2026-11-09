@@ -17,6 +17,12 @@ const (
 	defaultMaxEntries = 500
 )
 
+// ResultsVersion is part of every key. Bump it whenever ranking or response
+// shaping changes, so an upgraded binary never serves entries computed by
+// the old logic for an unchanged index generation.
+// 2: compound identifiers (memory_context) weight exact phrase matches.
+const ResultsVersion = 2
+
 type Cache struct {
 	Store      *sqlite.Store
 	TTL        time.Duration
@@ -29,8 +35,10 @@ func New(s *sqlite.Store) Cache {
 
 // Key hashes the tool name and every input that shapes its response. The
 // index generation is not part of the key; entries are bound to it on Put.
-func Key(tool string, parts ...any) string {
-	b, err := json.Marshal(append([]any{tool}, parts...))
+func Key(tool string, parts ...any) string { return keyFor(ResultsVersion, tool, parts...) }
+
+func keyFor(version int, tool string, parts ...any) string {
+	b, err := json.Marshal(append([]any{version, tool}, parts...))
 	if err != nil {
 		// Inputs are plain structs. Should one ever fail to encode, use a
 		// key that can never match again rather than risk a shared entry.
