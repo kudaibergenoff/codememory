@@ -12,6 +12,7 @@ var migrationFiles = []string{
 	"001_initial.sql",
 	"002_stat_prefilter.sql",
 	"003_memories.sql",
+	"004_query_cache.sql",
 }
 
 var schemaVersion = len(migrationFiles)

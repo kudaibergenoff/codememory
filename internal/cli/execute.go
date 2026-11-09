@@ -22,8 +22,11 @@ func execute(ctx context.Context, opts options, s *sqlite.Store, root string, cf
 	started := time.Now()
 	event := analytics.Event{Channel: "cli", Tool: opts.command}
 	result, err := dispatch(ctx, opts, s, root, cfg, &event)
-	if r, ok := result.(interface{ IndexGeneration() int64 }); ok {
-		event.Generation = r.IndexGeneration()
+	if r, ok := result.(interface {
+		IndexGeneration() int64
+		CacheHit() *bool
+	}); ok {
+		event.Generation, event.CacheHit = r.IndexGeneration(), r.CacheHit()
 	}
 	var payload []byte
 	if err == nil {

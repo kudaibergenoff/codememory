@@ -21,3 +21,8 @@ client logs are scraped. No currency conversion is made for subscription plans.
 Repeated responses still cost context; file cache reuse is avoided work only.
 Query cache, context efficiency, agent/session attribution, CSV/dashboard and
 reproducible provider-usage comparisons remain on the roadmap.
+
+`query_cache_hits`, `query_cache_misses` and `query_cache_hit_rate` count lookups by
+`memory_search`/`memory_context`; the rate is `null` until a lookup happens. A hit
+avoids local retrieval work only: the client still receives the same bytes, so it
+is not token savings.

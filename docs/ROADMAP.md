@@ -40,7 +40,7 @@ Remaining MVP commands are not registered as fake implementations.
 - [x] Architecture context (`include_architecture`, default true) backed by curated memories.
 - [x] Persistent decisions with provenance: `memory_remember`, sourced/unverified/stale.
 - [x] Architecture/dependency facts (`memory_architecture`), Go imports from go/ast.
-- [ ] Generation-bound query cache, TTL, invalidation and reuse metrics.
+- [x] Generation-bound query cache, TTL, invalidation and reuse metrics.
 - [ ] Remaining three MCP tools and complete client/session analytics attribution.
 - [ ] Reproducible baseline harness with quality criteria, negative cases and
   optional official actual-usage import; no fabricated verified savings.

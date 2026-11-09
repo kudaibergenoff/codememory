@@ -47,7 +47,9 @@ symbol weights, source line ranges and SHA-256. PHP/Python/TypeScript have text
 chunks. Search refreshes the index first (size/mtime prefilter, SHA-256 identity),
 so edits are visible without a manual `index`; status reports staleness read-only.
 After tools that preserve size and mtime (`cp -p`, `rsync -t`) run `index --full`.
-No watcher, embeddings, model calls or query cache yet.
+Search and context responses are cached per index generation (and memory revision);
+any file change or new memory invalidates them. A cache hit saves local work, not
+tokens. No watcher, embeddings or model calls.
 
 The default limits are 1 MiB/file, 128 MiB of eligible text, 20000 files and
 40 lines/chunk (also capped at 4096 UTF-8 bytes). Hard deny precedes ignore rules;
@@ -62,7 +64,7 @@ tokens. Actual usage and verified savings are `null` (N/A). Cache reuse is not
 token savings; token savings are not subscription cost savings.
 
 `benchmark`, `report`, `dashboard`, `optimize`, `doctor`, `clean`,
-`install` and the query cache remain pending, not placeholder commands.
+and `install` remain pending, not placeholder commands.
 The first slice is tested locally on macOS arm64; the native five-platform CI
 matrix is provided but has not run. Authenticated Claude/Codex smoke tests and a
 dependency/license review are required before release.

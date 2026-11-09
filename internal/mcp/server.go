@@ -34,7 +34,10 @@ const (
 )
 
 // response is implemented by every tool result via the embedded search.Envelope.
-type response interface{ IndexGeneration() int64 }
+type response interface {
+	IndexGeneration() int64
+	CacheHit() *bool
+}
 
 type server struct {
 	store *sqlite.Store
@@ -97,7 +100,7 @@ func call[T response](ctx context.Context, h *server, tool string, fn func(conte
 	if failed {
 		payload = failure(h.root, result.IndexGeneration())
 	}
-	event := analytics.Event{Channel: "mcp", Tool: tool, Generation: result.IndexGeneration(), ResponseBytes: len(payload), Duration: time.Since(started), Failed: failed}
+	event := analytics.Event{Channel: "mcp", Tool: tool, Generation: result.IndexGeneration(), CacheHit: result.CacheHit(), ResponseBytes: len(payload), Duration: time.Since(started), Failed: failed}
 	metricCtx, done := context.WithTimeout(context.WithoutCancel(ctx), metricTimeout)
 	defer done()
 	if err := analytics.Record(metricCtx, h.store.DB, event); err != nil {

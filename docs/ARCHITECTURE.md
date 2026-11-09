@@ -72,8 +72,15 @@ chunk labels); imports under the root `go.mod` module path are reported as
 directories, the rest only counted. `_test.go` files count as files but do not
 define a module's package or dependencies.
 
-Reserved future boundaries, not empty packages: generation-bound query cache,
-benchmark/reporter and local dashboard.
+Query cache (`internal/qcache`, schema v4): `memory_search` and `memory_context`
+responses are stored under SHA-256(tool, normalized input, secrets flag, and for
+context the memory revision), bound to the index generation that produced them
+and expiring after 1 h; writing drops other generations and keeps 500 entries.
+Refresh still runs first, so a hit is only possible while the files are
+unchanged. `events.cache_hit` feeds `query_cache_hit_rate` in `stats`; hits are
+avoided retrieval work, never reported as token savings.
+
+Reserved future boundaries, not empty packages: benchmark/reporter and local dashboard.
 
 Analytics writes happen after measured work; latency excludes metric storage and
 network/client execution. Metrics failures log a warning and do not discard a

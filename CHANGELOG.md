@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Query cache (schema v4) for `memory_search` and `memory_context`, bound to the
+  index generation and memory revision; `stats` reports hits, misses and rate.
+
 - `memory_architecture` MCP tool and `codememory architecture`: modules, Go
   packages and internal imports from go/ast (parser v2), plus scoped memories.
 - `memory_context` includes applicable curated memories by default.

@@ -4,10 +4,12 @@ package contextpack
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/kudaibergenoff/codememory/internal/analytics"
 	"github.com/kudaibergenoff/codememory/internal/config"
 	"github.com/kudaibergenoff/codememory/internal/memory"
+	"github.com/kudaibergenoff/codememory/internal/qcache"
 	"github.com/kudaibergenoff/codememory/internal/search"
 	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
@@ -66,13 +68,39 @@ func Build(ctx context.Context, s *sqlite.Store, root string, cfg config.Config,
 		}
 		return pack(base, nil, nil, budget)
 	}
-	result, err := s.Search(ctx, search.OrExpression(terms, true), "", "", candidateLimit)
+	include := in.IncludeArchitecture == nil || *in.IncludeArchitecture
+	revision, err := s.MemoryRevision(ctx)
+	if err != nil {
+		return Response{}, err
+	}
+	cache := qcache.New(s)
+	key := qcache.Key("memory_context", terms, budget, include, revision, refreshed.Secrets > 0)
+	var cached Response
+	if hit, err := cache.Get(ctx, key, refreshed.Generation, &cached); err != nil {
+		slog.Warn("query cache read failed", "error", err)
+	} else if hit {
+		cached.MarkCache(true)
+		return cached, nil
+	}
+	resp, err := assemble(ctx, s, root, base, refreshed, include, budget)
+	if err != nil {
+		return Response{}, err
+	}
+	if err := cache.Put(ctx, key, resp.Generation, resp); err != nil {
+		slog.Warn("query cache write failed", "error", err)
+	}
+	resp.MarkCache(false)
+	return resp, nil
+}
+
+func assemble(ctx context.Context, s *sqlite.Store, root string, base Response, refreshed sqlite.IndexResult, include bool, budget int) (Response, error) {
+	result, err := s.Search(ctx, search.OrExpression(base.Terms, true), "", "", candidateLimit)
 	if err != nil {
 		return Response{}, err
 	}
 	base.Envelope = search.Fresh(root, result.Generation, refreshed)
 	var memories []memory.Record
-	if in.IncludeArchitecture == nil || *in.IncludeArchitecture {
+	if include {
 		if memories, err = memory.Recall(ctx, s, ""); err != nil {
 			return Response{}, err
 		}

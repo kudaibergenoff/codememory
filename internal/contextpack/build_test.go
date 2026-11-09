@@ -180,3 +180,19 @@ func TestLargeMemoryDoesNotBreakBudget(t *testing.T) {
 		t.Fatalf("encoded %d tokens, %d snippets", est, len(got.Snippets))
 	}
 }
+
+func TestContextCacheInvalidatedByNewMemory(t *testing.T) {
+	root, s := project(t)
+	in := contextpack.Input{Task: "refund payment"}
+	build(t, root, s, config.Default(), in)
+	if hit := build(t, root, s, config.Default(), in).CacheHit(); hit == nil || !*hit {
+		t.Fatalf("repeat should hit: %v", hit)
+	}
+
+	remember(t, root, s, memory.Input{Title: "New rule", Body: "Refunds need a reason.", Scope: memory.DefaultScope})
+	got := build(t, root, s, config.Default(), in)
+
+	if hit := got.CacheHit(); hit == nil || *hit || len(got.Architecture) != 1 {
+		t.Fatalf("memory change must invalidate: hit=%v arch=%d", hit, len(got.Architecture))
+	}
+}
