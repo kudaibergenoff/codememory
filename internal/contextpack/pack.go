@@ -37,11 +37,7 @@ func pack(base Response, candidates []sqlite.Match, memories []memory.Record, bu
 	if len(relevant) > 0 {
 		r.Warnings = append(r.Warnings[:len(r.Warnings):len(r.Warnings)], memoryNotice)
 	}
-	measure := func(x Response) int {
-		x.Omitted, x.EstimatedTokens, x.MemoriesOmitted = bound, budget, len(relevant)
-		x.Summary = summary(bound, bound, bound, budget)
-		return cost(x)
-	}
+	measure := newSizer(bound, budget, len(relevant)).measure
 	empty := shrinkToFit(r, budget, measure)
 	if measure(empty) > budget {
 		return Response{}, fmt.Errorf("max_tokens %d is smaller than the response envelope; raise it", budget)
@@ -63,6 +59,78 @@ func pack(base Response, candidates []sqlite.Match, memories []memory.Record, bu
 	r.EstimatedTokens = budget
 	r.EstimatedTokens = cost(r) // the real value has no more digits than budget
 	return r, nil
+}
+
+// sizer measures a response like cost(withBounds(r)) without re-encoding it:
+// the skeleton (all arrays empty) is encoded once per term count, and each
+// array element once. Compact JSON makes the total exact: a non-empty array
+// adds its elements plus n-1 commas.
+type sizer struct {
+	bound, budget, relevant int
+	skeleton                map[int]int
+	files                   map[string]int
+	snippets                map[Snippet]int
+	sources                 map[sqlite.Source]int
+	memories                map[int64]int
+}
+
+// archKey is what a non-empty omitempty "architecture" array adds besides its elements.
+var archKey = len(`,"architecture":[]`)
+
+func newSizer(bound, budget, relevant int) *sizer {
+	return &sizer{bound: bound, budget: budget, relevant: relevant, skeleton: map[int]int{},
+		files: map[string]int{}, snippets: map[Snippet]int{}, sources: map[sqlite.Source]int{}, memories: map[int64]int{}}
+}
+
+// withBounds sets the counters known only at the end to upper bounds.
+func (z *sizer) withBounds(x Response) Response {
+	x.Omitted, x.EstimatedTokens, x.MemoriesOmitted = z.bound, z.budget, z.relevant
+	x.Summary = summary(z.bound, z.bound, z.bound, z.budget)
+	return x
+}
+
+func (z *sizer) measure(x Response) int {
+	n, ok := z.skeleton[len(x.Terms)]
+	if !ok {
+		e := z.withBounds(x)
+		e.Files, e.Snippets, e.Sources, e.Architecture = []string{}, []Snippet{}, []sqlite.Source{}, nil
+		n = encodedLen(e)
+		z.skeleton[len(x.Terms)] = n
+	}
+	n += arrayBytes(x.Files, z.files, func(f string) string { return f })
+	n += arrayBytes(x.Snippets, z.snippets, func(s Snippet) Snippet { return s }) // keyed by value: every encoded field
+	n += arrayBytes(x.Sources, z.sources, func(s sqlite.Source) sqlite.Source { return s })
+	if len(x.Architecture) > 0 {
+		n += archKey + arrayBytes(x.Architecture, z.memories, func(m memory.Record) int64 { return m.ID })
+	}
+	return analytics.Estimate(n)
+}
+
+// arrayBytes returns the bytes elems add to an empty JSON array, caching each
+// element's encoded length under key(elem).
+func arrayBytes[E any, K comparable](elems []E, cache map[K]int, key func(E) K) int {
+	if len(elems) == 0 {
+		return 0
+	}
+	total := len(elems) - 1
+	for _, e := range elems {
+		k := key(e)
+		size, ok := cache[k]
+		if !ok {
+			size = encodedLen(e)
+			cache[k] = size
+		}
+		total += size
+	}
+	return total
+}
+
+func encodedLen(v any) int {
+	b, err := search.Encode(v)
+	if err != nil {
+		return int(^uint(0) >> 2) // unencodable never fits
+	}
+	return len(b)
 }
 
 func cost(r Response) int {

@@ -54,6 +54,9 @@ func parseLast(s string) (time.Duration, error) {
 	if days, ok := strings.CutSuffix(s, "d"); ok {
 		var n int
 		n, err = strconv.Atoi(days)
+		if n < 1 || n > int(maxWindow/(24*time.Hour)) {
+			n = -1 // rejected below; never multiply an unchecked count
+		}
 		d = time.Duration(n) * 24 * time.Hour
 	} else {
 		d, err = time.ParseDuration(s)

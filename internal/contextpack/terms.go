@@ -40,6 +40,9 @@ func toSet(words ...string) map[string]bool {
 	return set
 }
 
+// Terms returns the search terms memory_context derives from a task.
+func Terms(task string) ([]string, error) { return taskTerms(task) }
+
 // taskTerms extracts up to maxTerms search terms from a natural-language task.
 func taskTerms(task string) ([]string, error) {
 	if len(task) > maxTaskBytes || !utf8.ValidString(task) {

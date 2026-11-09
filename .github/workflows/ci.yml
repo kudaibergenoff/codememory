@@ -36,4 +36,6 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
+      # v1.1.4 panicked on Go 1.27 standard-library code for linux
+      # ("unexpected expr: *ast.KeyValueExpr"); keep govulncheck current.
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...

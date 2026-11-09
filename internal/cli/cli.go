@@ -7,11 +7,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/kudaibergenoff/codememory/internal/architecture"
 	"github.com/kudaibergenoff/codememory/internal/config"
 	"github.com/kudaibergenoff/codememory/internal/contextpack"
+	"github.com/kudaibergenoff/codememory/internal/dashboard"
 	"github.com/kudaibergenoff/codememory/internal/mcp"
 	"github.com/kudaibergenoff/codememory/internal/memory"
 	"github.com/kudaibergenoff/codememory/internal/search"
@@ -28,9 +30,15 @@ remember: --title TEXT --body TEXT [--scope DIR] [--source PATH]...
 architecture: [--scope DIR]
 context also accepts --architecture=false to omit curated memories
 stats:   [--today | --last 30d] [--agent claude|codex|unknown]
-report:  [--format json|csv] [--today | --last 30d] [--agent ...]`
+report:  [--format json|csv] [--today | --last 30d] [--agent ...]
+install: claude|codex [--yes]   shows a diff; writes only with --yes
+clean:   [--all] [--yes]        index only; --all also removes memories and analytics
+doctor:  read-only diagnostics
+benchmark: [--tasks FILE]     built-in fixture suite, or your tasks against this project
+optimize: read-only suggestions from index, analytics and the latest benchmark
+dashboard: [--addr 127.0.0.1:0] local read-only web view (loopback only)`
 
-var commands = map[string]bool{"init": true, "index": true, "search": true, "context": true, "remember": true, "architecture": true, "status": true, "stats": true, "report": true, "serve": true}
+var commands = map[string]bool{"init": true, "index": true, "search": true, "context": true, "remember": true, "architecture": true, "status": true, "stats": true, "report": true, "doctor": true, "install": true, "clean": true, "benchmark": true, "optimize": true, "dashboard": true, "serve": true}
 
 type options struct {
 	command string
@@ -42,6 +50,11 @@ type options struct {
 	arch    architecture.Input
 	withArc bool
 	window  window
+	client  string
+	yes     bool
+	all     bool
+	tasks   string
+	addr    string
 }
 
 func Run(ctx context.Context, args []string, out, errOut io.Writer) error {
@@ -64,6 +77,14 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer) error {
 	if err != nil {
 		return err
 	}
+	switch opts.command {
+	case "doctor":
+		return runDoctor(ctx, root, out)
+	case "install":
+		return runInstall(root, opts, out)
+	case "clean":
+		return runClean(ctx, root, opts, out)
+	}
 	if opts.command == "init" {
 		if err = config.Init(root); err != nil {
 			return err
@@ -78,8 +99,13 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer) error {
 		return err
 	}
 	defer s.Close()
-	if opts.command == "serve" {
+	switch opts.command {
+	case "serve":
 		return mcp.Serve(ctx, s, root, Version)
+	case "dashboard":
+		return dashboard.Serve(ctx, s, filepath.Base(root), opts.addr, func(url string) {
+			_ = writeJSON(out, map[string]string{"url": url, "note": "Read-only local view; press Ctrl-C to stop."})
+		})
 	}
 	return execute(ctx, opts, s, root, cfg, out)
 }
@@ -88,6 +114,10 @@ func parse(args []string, errOut io.Writer) (options, error) {
 	opts := options{command: args[0]}
 	if !commands[opts.command] {
 		return opts, fmt.Errorf("unknown command %q", opts.command)
+	}
+	rest := args[1:]
+	if opts.command == "install" && len(rest) > 0 && !strings.HasPrefix(rest[0], "-") {
+		opts.client, rest = rest[0], rest[1:]
 	}
 	flags := flag.NewFlagSet(opts.command, flag.ContinueOnError)
 	flags.SetOutput(errOut)
@@ -109,6 +139,10 @@ func parse(args []string, errOut io.Writer) (options, error) {
 		flags.StringVar(&opts.window.last, "last", "", "only events in this window, e.g. 7d or 12h (max 30d)")
 		flags.StringVar(&opts.window.agent, "agent", "", "only events from claude, codex or unknown")
 		flags.StringVar(&opts.window.format, "format", "json", "report format: json or csv")
+	case "dashboard":
+		flags.StringVar(&opts.addr, "addr", "127.0.0.1:0", "loopback address to listen on")
+	case "benchmark":
+		flags.StringVar(&opts.tasks, "tasks", "", "JSON task file to run against this project (default: built-in suite)")
 	case "architecture":
 		flags.StringVar(&opts.arch.Scope, "scope", "", "project-relative directory (default: whole project)")
 	case "remember":
@@ -117,7 +151,13 @@ func parse(args []string, errOut io.Writer) (options, error) {
 		flags.StringVar(&opts.memory.Scope, "scope", "", "area it applies to (default project)")
 		flags.Var((*stringList)(&opts.memory.SourcePaths), "source", "supporting project-relative file (repeatable)")
 	}
-	if err := flags.Parse(args[1:]); err != nil {
+	if opts.command == "install" || opts.command == "clean" {
+		flags.BoolVar(&opts.yes, "yes", false, "apply the shown changes")
+	}
+	if opts.command == "clean" {
+		flags.BoolVar(&opts.all, "all", false, "remove the whole .codememory directory, including memories and analytics")
+	}
+	if err := flags.Parse(rest); err != nil {
 		return opts, err
 	}
 	if flags.NArg() != 0 {

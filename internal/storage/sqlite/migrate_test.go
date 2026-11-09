@@ -25,6 +25,7 @@ func seedVersion1(t *testing.T, dir, root string) {
 		"INSERT INTO project(id,root,generation,last_scan_at) VALUES(1,'" + root + "',3,'2026-11-09T00:00:00Z')",
 		"INSERT INTO files(id,path,sha256,size_bytes,language) VALUES(1,'a.go','hash',10,'go')",
 		"INSERT INTO events(at,channel,tool,generation,response_bytes,estimated_tokens,latency_us,failed) VALUES('2026-11-09T07:40:25.5Z','mcp','memory_search',3,10,4,100,0)",
+		"INSERT INTO events(at,channel,tool,generation,response_bytes,estimated_tokens,latency_us,failed) VALUES('not a time','cli','index',3,0,0,0,0)",
 		"PRAGMA user_version=1",
 	} {
 		if _, err = db.Exec(stmt); err != nil {
@@ -60,7 +61,7 @@ func TestUpgradeFromVersion1KeepsDataAndForcesStatRecheck(t *testing.T) {
 	}
 	var atNS int64
 	var agent string
-	if err = s.DB.QueryRow(`SELECT at_ns,agent FROM events`).Scan(&atNS, &agent); err != nil {
+	if err = s.DB.QueryRow(`SELECT at_ns,agent FROM events WHERE tool='memory_search'`).Scan(&atNS, &agent); err != nil {
 		t.Fatal(err)
 	}
 	if want := time.Date(2026, 11, 9, 7, 40, 25, 500_000_000, time.UTC).UnixNano(); atNS != want || agent != "unknown" {

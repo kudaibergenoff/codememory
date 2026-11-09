@@ -17,7 +17,10 @@ import (
 //go:embed migrations/*.sql
 var migrations embed.FS
 
-type Store struct{ DB *sql.DB }
+type Store struct {
+	DB  *sql.DB
+	dir string
+}
 
 const (
 	driverName    = "sqlite"
@@ -57,7 +60,7 @@ func Open(ctx context.Context, dir, root string) (*Store, error) {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 	db.SetMaxOpenConns(1)
-	s := &Store{DB: db}
+	s := &Store{DB: db, dir: dir}
 	if err = s.migrate(ctx, root); err != nil {
 		db.Close()
 		return nil, err

@@ -127,3 +127,75 @@ func TestStatsAndReportFilters(t *testing.T) {
 		}
 	}
 }
+
+func TestCleanKeepsMemoriesUnlessAll(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "pay.go"), []byte("package pay\nfunc Pay() {}\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	ctx := context.Background()
+	run := func(args ...string) string {
+		t.Helper()
+		out.Reset()
+		if err := Run(ctx, append(args, "--project", root), &out, &errOut); err != nil {
+			t.Fatalf("%v: %v %s", args, err, errOut.String())
+		}
+		return out.String()
+	}
+	run("init")
+	run("remember", "--title", "Keep", "--body", "Memories survive clean.")
+	run("index")
+
+	if got := run("clean"); !strings.Contains(got, `"applied":false`) || !strings.Contains(run("status"), `"files":1`) {
+		t.Fatalf("dry run changed the index: %s", got)
+	}
+	run("clean", "--yes")
+	if got := run("status"); !strings.Contains(got, `"files":0`) || !strings.Contains(got, `"is_stale":true`) {
+		t.Fatalf("index not reset: %s", got)
+	}
+	if got := run("architecture"); !strings.Contains(got, `"title":"Keep"`) {
+		t.Fatalf("memory lost: %s", got)
+	}
+
+	run("clean", "--all", "--yes")
+	if _, err := os.Stat(filepath.Join(root, ".codememory")); !os.IsNotExist(err) {
+		t.Fatalf("state directory kept: %v", err)
+	}
+}
+
+func TestDoctorReportsWithoutFailing(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	ctx := context.Background()
+
+	if err := Run(ctx, []string{"doctor", "--project", root}, &out, &errOut); err != nil {
+		t.Fatalf("doctor failed on an uninitialized project: %v", err)
+	}
+	if got := out.String(); !strings.Contains(got, `"ok":false`) || !strings.Contains(got, "codememory init") {
+		t.Fatalf("uninitialized: %s", got)
+	}
+
+	out.Reset()
+	for _, args := range [][]string{{"init"}, {"index"}, {"doctor"}} {
+		out.Reset()
+		if err := Run(ctx, append(args, "--project", root), &out, &errOut); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := out.String()
+	if !strings.Contains(got, `"name":"gitignore","status":"warn"`) || !strings.Contains(got, `"name":"database","status":"ok"`) {
+		t.Fatalf("initialized: %s", got)
+	}
+}
+
+func TestParseLastRejectsOverflow(t *testing.T) {
+	for _, bad := range []string{"9223372036854775807d", "106752d", "31d", "0d", "-1d"} {
+		if _, err := parseLast(bad); err == nil {
+			t.Errorf("%s accepted", bad)
+		}
+	}
+}

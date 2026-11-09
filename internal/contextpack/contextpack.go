@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	defaultTokens  = 1500
+	DefaultTokens  = 1500
 	minTokens      = 500 // below this, envelope + one snippet's provenance may not fit
 	maxTokens      = 8000
 	candidateLimit = 60
@@ -111,7 +111,7 @@ func assemble(ctx context.Context, s *sqlite.Store, root string, base Response, 
 
 func budgetOf(requested int) (int, error) {
 	if requested == 0 {
-		return defaultTokens, nil
+		return DefaultTokens, nil
 	}
 	if requested < minTokens || requested > maxTokens {
 		return 0, fmt.Errorf("max_tokens must be between %d and %d", minTokens, maxTokens)

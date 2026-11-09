@@ -13,6 +13,7 @@ import (
 	"github.com/kudaibergenoff/codememory/internal/contextpack"
 	"github.com/kudaibergenoff/codememory/internal/indexer"
 	"github.com/kudaibergenoff/codememory/internal/memory"
+	"github.com/kudaibergenoff/codememory/internal/optimize"
 	"github.com/kudaibergenoff/codememory/internal/search"
 	"github.com/kudaibergenoff/codememory/internal/storage/sqlite"
 )
@@ -37,7 +38,7 @@ func execute(ctx context.Context, opts options, s *sqlite.Store, root string, cf
 	event.ResponseBytes = len(payload)
 	event.Duration = time.Since(started)
 	event.Failed = err != nil
-	if opts.command != "stats" && opts.command != "report" && opts.command != "init" {
+	if opts.command != "stats" && opts.command != "report" && opts.command != "init" && opts.command != "benchmark" && opts.command != "optimize" {
 		if metricErr := analytics.Record(ctx, s.DB, event); metricErr != nil {
 			slog.Warn("metric recording failed")
 		}
@@ -71,6 +72,14 @@ func dispatch(ctx context.Context, opts options, s *sqlite.Store, root string, c
 		indexed, err := run(ctx, s, root, cfg)
 		event.Indexed, event.Reused, event.Generation = indexed.Indexed, indexed.Reused, indexed.Generation
 		return indexed, err
+	case "optimize":
+		e, err := optimize.Gather(ctx, s, contextpack.DefaultTokens)
+		if err != nil {
+			return nil, err
+		}
+		return optimize.Result{Suggestions: optimize.Suggest(e), Note: optimize.Note}, nil
+	case "benchmark":
+		return runBenchmark(ctx, s, root, cfg, opts.tasks)
 	case "report":
 		return report(ctx, s.DB, opts.window)
 	default: // "stats"

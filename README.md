@@ -25,7 +25,15 @@ Add `.codememory/` to your project's `.gitignore`. Configuration is in
 `.codememory/config.json`; private SQLite state stays inside that directory.
 Global agent settings are never modified automatically.
 
-Implemented commands: `init`, `index [--full]`, `search`, `context`, `remember`, `architecture`, `status`, `stats`, `report`, `serve`, `version`.
+Implemented commands: `init`, `index [--full]`, `search`, `context`, `remember`, `architecture`, `status`, `stats`, `report`, `install`, `doctor`, `clean`, `benchmark`, `optimize`, `dashboard`, `serve`, `version`.
+`benchmark [--tasks FILE]` compares memory_context with a lexical baseline and an
+oracle (estimates only; see docs/ANALYTICS.md), `optimize` prints evidence-based
+suggestions without changing anything, and `dashboard` serves a read-only view on
+loopback (`--addr 127.0.0.1:0`).
+`install claude|codex` prints a plan with diffs and writes only with `--yes`
+(idempotent; marked blocks; never edits a hand-written Codex entry). `doctor` is
+read-only. `clean --yes` drops the index and cache but keeps memories and
+analytics; `clean --all --yes` removes `.codememory/` entirely.
 `stats [--today | --last 7d] [--agent claude|codex|unknown]` and
 `report --format json|csv` aggregate local events per UTC day, agent and tool.
 `context --task "add a refund endpoint" --max-tokens 1500` returns ranked snippets and
@@ -65,8 +73,6 @@ positives. See [security scope](docs/SECURITY.md).
 tokens. Actual usage and verified savings are `null` (N/A). Cache reuse is not
 token savings; token savings are not subscription cost savings.
 
-`benchmark`, `report`, `dashboard`, `optimize`, `doctor`, `clean`,
-and `install` remain pending, not placeholder commands.
 The first slice is tested locally on macOS arm64; the native five-platform CI
 matrix is provided but has not run. Authenticated Claude/Codex smoke tests and a
 dependency/license review are required before release.
